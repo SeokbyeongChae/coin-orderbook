@@ -16,11 +16,11 @@ export default class OrderBook {
     this.orderBookDepth = this.config.orderBookDepth;
   }
 
-  public updateOrderBookByDataset(dataset: OrderBookDataset): any[] | undefined {
+  public updateOrderBookByDataset(dataset: OrderBookDataset): any {
     const market = `${dataset.baseAsset}/${dataset.quoteAsset}`;
     const marketOrderBookMap = this.getMarketOrderBookMap(dataset.orderType, market);
 
-    const result = [];
+    // const result = [];
     for (const item of dataset.dataList) {
       let orderBookItem = marketOrderBookMap.get(item.bgPrice);
       if (item.bgAmount) {
@@ -31,20 +31,20 @@ export default class OrderBook {
 
         orderBookItem.updateAmount(dataset.exchangeId, item.bgAmount);
 
-        result.push([item.bgPrice, item.bgAmount]);
+        // result.push([item.bgPrice, orderBookItem]);
       } else {
-        if (!orderBookItem)  return;
+        if (!orderBookItem) continue;
 
         orderBookItem.removeExchange(dataset.exchangeId);
         if (orderBookItem.isEmpty()) {
           marketOrderBookMap.delete(item.bgPrice);
 
-          result.push([item.bgPrice, undefined]);
+          // result.push([item.bgPrice, undefined]);
         }
       }
     }
 
-    return result;
+    return marketOrderBookMap;
   }
 
   public getOrderBookMap(orderType: OrderType): any {

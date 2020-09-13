@@ -97,14 +97,25 @@ export default class Quant {
   }
 
   public updateOrderBookByDataset(orderBookDataset: OrderBookDataset) {
-    const result = this.orderBook.updateOrderBookByDataset(orderBookDataset);
-    if (!result) return;
+    const marketOrderMap = this.orderBook.updateOrderBookByDataset(orderBookDataset);
+    if (!marketOrderMap) return;
+
+    let orderBookIndex = 0;
+    const updatedPriceList = [];
+    for (const [bgPrice, orderBookItem] of marketOrderMap.entries()) {
+      if (orderBookIndex++ >= this.orderBook.orderBookDepth) break;
+
+      const index = orderBookDataset.dataList.findIndex( x => x.bgPrice.eq(bgPrice));
+      if (index !== -1 ){
+        updatedPriceList.push([bgPrice, orderBookItem])
+      }
+    }
 
     const data = {
       baseAsset: orderBookDataset.baseAsset,
       quoteAsset: orderBookDataset.quoteAsset,
       orderType: orderBookDataset.orderType,
-      data: result
+      data: updatedPriceList
     }
 
     this.broadcastEngineMessage('updateOrderBook', data);
