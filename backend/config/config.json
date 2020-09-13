@@ -1,0 +1,12 @@
+{
+  "exchanges": {
+    "binance": {
+      "webSocketUrl": "wss://stream.binance.com:9443/ws",
+      "endPoint": "https://api.binance.com",
+      "enabled": "true",
+      "id": 1
+    }
+  },
+  "quoteAssetList": ["EUR", "TUSD", "USDT", "USDC", "KRW", "BTC"],
+  "baseAssetList": ["EUR", "TUSD", "USDT", "USDC", "KRW", "BTC", "ETH", "RVN", "LTC", "ZEC", "DASH", "SNT"]
+}
