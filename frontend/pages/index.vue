@@ -15,7 +15,7 @@ export default {
       const request = {
         method: "market/list"
       };
-      // ws.send(msgpack.pack(request));
+      ws.send(JSON.stringify(request));
     };
   }
 };

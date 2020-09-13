@@ -2,7 +2,7 @@ import { Big } from "big.js";
 import Exchange from "../lib/exchange";
 import WSConnector from "../lib/wsConnector";
 import Util from "../common/util";
-import Sleep from "sleep";
+import Sleep from "sleep-promise";
 import Quant from "../quant";
 import { OrderBookDataset, OrderBookDatasetItem } from "../lib/orderBook";
 import { OrderType } from "../common/constants";
@@ -36,6 +36,7 @@ export default class Binance extends Exchange {
       for (let i = 0; i < exchangeInfoList.length; i++) {
         const exchangeInfo = exchangeInfoList[i];
         this.exchangeInfoMap.set(exchangeInfo.symbol, exchangeInfo);
+        this.quant.addMarketList(this.id, exchangeInfo.baseAsset, exchangeInfo.quoteAsset);
 
         this.tempOrderBookInitialized.set(exchangeInfo.symbol, false);
         this.tempOrderBookStreamBuffer.set(exchangeInfo.symbol, new Map());
@@ -68,7 +69,7 @@ export default class Binance extends Exchange {
         const tempOrderBookBuffer = this.tempOrderBookStreamBuffer.get(exchangeInfo.symbol);
         if (!tempOrderBookBuffer) {
           this.tempOrderBookInitialized.set(exchangeInfo.symbol, true);
-          await Sleep.msleep(500);
+          await Sleep(500);
           continue;
         }
 
@@ -79,7 +80,7 @@ export default class Binance extends Exchange {
         }
 
         this.tempOrderBookInitialized.set(exchangeInfo.symbol, true);
-        await Sleep.msleep(500);
+        await Sleep(500);
       }
 
       // request marketList
@@ -90,6 +91,10 @@ export default class Binance extends Exchange {
     this.wsConnector.on("message", message => {
       this.messageHandler(JSON.parse(message.data));
     });
+
+    this.wsConnector.on("close", async () => {
+      console.log('close..');
+    })
   }
 
   start(): void {}

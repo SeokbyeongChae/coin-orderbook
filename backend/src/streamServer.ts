@@ -1,23 +1,14 @@
 import WebSocket from "ws";
 import { IPC } from "node-ipc";
 
-/*
-ipc.config.id = "hello";
-ipc.config.retry = 1500;
-// ipc.config.silent = true;
+const enum engineMethod {
+  orderBook = "orderBook",
+  updateOrderBook = "updateOrderBook",
+  marketList = "marketList"
+}
 
-ipc.connectTo("world", function() {
-  ipc.of.world.on("message", function(data) {
-    console.log(data);
-  });
-});
-*/
-
-const zmq = require("zeromq");
-const msgpack = require("msgpack");
-
-const enum subscribeMethod {
-  orderBook = "orderBook"
+const enum method {
+  market_list = "market/list"
 }
 
 export default class StreamServer {
@@ -48,8 +39,8 @@ export default class StreamServer {
         console.log("close");
       });
 
-      ws.on("message", () => {
-        console.log("message");
+      ws.on("message", (msg) => {
+        this.messageHandler(msg);
       });
     });
   }
@@ -58,13 +49,70 @@ export default class StreamServer {
     this.ipc.connectTo("engine", () => {
       this.ipc.of.engine.on("connect", (msg: any) => {
         console.log("connect engine..");
+        this.requestEngineData(engineMethod.marketList);
+        this.requestEngineData(engineMethod.orderBook);
       });
 
-      this.ipc.of.engine.on("updateOrderBook", (msg: any) => {
-        console.dir(msg);
+      this.ipc.of.engine.on(engineMethod.orderBook, (msg: any) => {
+        this.engineMessageHandler(engineMethod.orderBook, msg);
+      });
+
+      this.ipc.of.engine.on(engineMethod.updateOrderBook, (msg: any) => {
+        this.engineMessageHandler(engineMethod.updateOrderBook, msg);
+      });
+
+      this.ipc.of.engine.on(engineMethod.marketList, (msg: any) => {
+        this.engineMessageHandler(engineMethod.marketList, msg);
       });
     });
     return true;
+  }
+
+  async requestEngineData(method: string, param?: any) {
+    if (!this.ipc.of.engine) {
+      return console.log('fail to request engine data..');
+    }
+
+    this.ipc.of.engine.emit(method, param);
+  }
+
+  async engineMessageHandler(method: string, msg: any) {
+    switch(method) {
+      case engineMethod.marketList: {
+        console.dir(msg);
+        break;
+      }
+      case engineMethod.orderBook: {
+        console.dir(msg)
+        break;
+      }
+      case engineMethod.updateOrderBook: {
+        console.dir(msg)
+        break;
+      }
+      default: {
+        console.log(`unknown engine methid: ${method}`);
+      }
+    }
+  }
+
+  async messageHandler(msg: any) {
+    let message;
+    try {
+      message = JSON.parse(msg);
+    } catch(err) {
+      return console.log(`fail to parse client message: ${JSON.parse(err)}`);
+    }
+
+    switch(message.method) {
+      case method.market_list: {
+        this.requestEngineData(engineMethod.marketList);
+        break;
+      }
+      default: {
+        console.log(`unknown client methid: ${msg}`);
+      }
+    }
   }
 
   /*

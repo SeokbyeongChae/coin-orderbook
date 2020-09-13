@@ -8,5 +8,6 @@
     }
   },
   "quoteAssetList": ["EUR", "TUSD", "USDT", "USDC", "KRW", "BTC"],
-  "baseAssetList": ["EUR", "TUSD", "USDT", "USDC", "KRW", "BTC", "ETH", "RVN", "LTC", "ZEC", "DASH", "SNT"]
+  "baseAssetList": ["EUR", "TUSD", "USDT", "USDC", "KRW", "BTC", "ETH", "RVN", "LTC", "ZEC", "DASH", "SNT"],
+  "orderBookDepth": 14
 }

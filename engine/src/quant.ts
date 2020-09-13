@@ -1,24 +1,24 @@
-import OrderBook, { OrderBookDataset } from "./lib/orderBook";
-import Binance from "./exchanges/binance";
-import Exchange, { ExchangeStatuses } from "./lib/exchange";
-import config from "../config/config.json";
-import { OrderType, ExchangeId } from "./common/constants";
-import { IPC } from "node-ipc";
-
-// const zmq = require("zeromq/v5-compat");
-const zmq = require("zeromq");
-const msgpack = require("msgpack");
+import OrderBook, { OrderBookDataset } from './lib/orderBook';
+import Binance from './exchanges/binance';
+import Exchange, { ExchangeStatuses } from './lib/exchange';
+import config from '../config/config.json';
+import { OrderType, ExchangeId } from './common/constants';
+import { IPC } from 'node-ipc';
+import marketManager from './lib/marketManager'
+import MarketManager from './lib/marketManager';
 
 export default class Quant {
   config: any;
 
   orderBook: OrderBook;
-  exchangeMap: Map<ExchangeId, Exchange> = new Map();
 
-  // zmqSock: any = zmq.socket("pub");
-  // zmqSock: any = new zmq.Publisher();
+
+  exchangeMap: Map<ExchangeId, Exchange> = new Map();
+  
+
   private ipc = new IPC();
   private processSet: Set<any> = new Set();
+  private marketManager: MarketManager = new marketManager();
 
   constructor(config: any) {
     this.config = config;
@@ -28,33 +28,36 @@ export default class Quant {
     const binanceExchange = new Binance(this, this.config, this.config.exchanges.binance);
     this.exchangeMap.set(ExchangeId.binance, binanceExchange);
 
-    this.ipc.config.id = "engine";
+    this.ipc.config.id = 'engine';
     this.ipc.config.retry = 1500;
     this.ipc.config.silent = true;
-
-    // this.zmqSock.bind("utp://127.0.0.1:3456");
-    // this.zmqSock.bind("tcp://*:3456", (err: any) => {
-    //   if (err) {
-    //     console.log("zeromq error..", JSON.stringify(err));
-    //     process.exit(1);
-    //   }
-
-    //   console.log("create zeromq socket..");
-    // });
   }
 
   public startPipeline() {
     this.ipc.serve(() => {
-      this.ipc.server.on("connect", (socket: any) => {
-        // this.ipc.server.emit(socket, "message", "haa");
+      this.ipc.server.on('connect', (socket: any) => {
         this.processSet.add(socket);
         console.log(this.processSet.size);
       });
 
-      this.ipc.server.on("socket.disconnected", (socket: any) => {
-        // console.log(data1);
+      this.ipc.server.on('socket.disconnected', (socket: any) => {
         this.processSet.delete(socket);
         console.log(this.processSet.size);
+      });
+
+      this.ipc.server.on('marketList', (data: any, socket: any) => {
+        const marketList = this.marketManager.getMarketList();
+        console.log(data);
+        this.ipc.server.emit(socket, "marketList", marketList);
+      });
+
+      this.ipc.server.on('orderBook', (data: any, socket: any) => {
+        const snapshot = {
+          ask: this.orderBook.getOrderBookMap(OrderType.ask),
+          bid: this.orderBook.getOrderBookMap(OrderType.bid)
+        }
+        
+        this.ipc.server.emit(socket, "orderBook", snapshot);
       });
     });
 
@@ -70,7 +73,7 @@ export default class Quant {
   public start() {
     for (const [exchangeId, exchange] of this.exchangeMap) {
       exchange.init();
-      exchange.on("updateStatus", status => {
+      exchange.on('updateStatus', status => {
         switch (status) {
           case ExchangeStatuses.idle: {
             break;
@@ -89,23 +92,32 @@ export default class Quant {
         }
       });
 
-      exchange.on("updateOrderBookByDataset", () => {});
+      exchange.on('updateOrderBookByDataset', () => {});
     }
   }
 
-  updateOrderBookByDataset(orderBookDataset: OrderBookDataset) {
-    /*
-    const data = {
-      message: "hello"
-    };
-    const data1 = msgpack.pack(data);
-    this.zmqSock.send([msgpack.pack("orderBook"), data1]);
-    */
+  public updateOrderBookByDataset(orderBookDataset: OrderBookDataset) {
     const result = this.orderBook.updateOrderBookByDataset(orderBookDataset);
     if (!result) return;
 
-    this.broadcastEngineMessage("updateOrderBook", result);
-    // this.zmqSock.send([msgpack.pack("orderBook"), msgpack.pack(result)]);
+    const data = {
+      baseAsset: orderBookDataset.baseAsset,
+      quoteAsset: orderBookDataset.quoteAsset,
+      orderType: orderBookDataset.orderType,
+      data: result
+    }
+
+    this.broadcastEngineMessage('updateOrderBook', data);
+  }
+
+  public addMarketList(exchangeId: ExchangeId, baseAsset: string, quoteAsset: string) {
+    this.marketManager.addMarketList(exchangeId, baseAsset, quoteAsset);
+    
+    this.broadcastEngineMessage('marketList', this.marketManager.getMarketList());
+	}
+
+	public removeAllMarketByExchangeId(exchangeId: ExchangeId) {
+    this.marketManager.removeAllMarketByExchangeId(exchangeId);
   }
 
   public isQuoteAsset(asset: string): boolean {
