@@ -1,20 +1,18 @@
-import OrderBook, { OrderBookDataset } from './lib/orderBook';
-import Binance from './exchanges/binance';
-import Exchange, { ExchangeStatuses } from './lib/exchange';
-import config from '../config/config.json';
-import { OrderType, ExchangeId } from './common/constants';
-import { IPC } from 'node-ipc';
-import marketManager from './lib/marketManager'
-import MarketManager from './lib/marketManager';
+import OrderBook, { OrderBookDataset } from "./lib/orderBook";
+import Binance from "./exchanges/binance";
+import Exchange, { ExchangeStatuses } from "./lib/exchange";
+import config from "../config/config.json";
+import { OrderType, ExchangeId } from "./common/constants";
+import { IPC } from "node-ipc";
+import marketManager from "./lib/marketManager";
+import MarketManager from "./lib/marketManager";
 
 export default class Quant {
   config: any;
 
   orderBook: OrderBook;
 
-
   exchangeMap: Map<ExchangeId, Exchange> = new Map();
-  
 
   private ipc = new IPC();
   private processSet: Set<any> = new Set();
@@ -28,35 +26,35 @@ export default class Quant {
     const binanceExchange = new Binance(this, this.config, this.config.exchanges.binance);
     this.exchangeMap.set(ExchangeId.binance, binanceExchange);
 
-    this.ipc.config.id = 'engine';
+    this.ipc.config.id = "engine";
     this.ipc.config.retry = 1500;
     this.ipc.config.silent = true;
   }
 
   public startPipeline() {
     this.ipc.serve(() => {
-      this.ipc.server.on('connect', (socket: any) => {
+      this.ipc.server.on("connect", (socket: any) => {
         this.processSet.add(socket);
         console.log(this.processSet.size);
       });
 
-      this.ipc.server.on('socket.disconnected', (socket: any) => {
+      this.ipc.server.on("socket.disconnected", (socket: any) => {
         this.processSet.delete(socket);
         console.log(this.processSet.size);
       });
 
-      this.ipc.server.on('marketList', (data: any, socket: any) => {
+      this.ipc.server.on("marketList", (data: any, socket: any) => {
         const marketList = this.marketManager.getMarketList();
         console.log(data);
         this.ipc.server.emit(socket, "marketList", marketList);
       });
 
-      this.ipc.server.on('orderBook', (data: any, socket: any) => {
+      this.ipc.server.on("orderBook", (data: any, socket: any) => {
         const snapshot = {
           ask: this.orderBook.getOrderBookMap(OrderType.ask),
           bid: this.orderBook.getOrderBookMap(OrderType.bid)
-        }
-        
+        };
+
         this.ipc.server.emit(socket, "orderBook", snapshot);
       });
     });
@@ -73,7 +71,7 @@ export default class Quant {
   public start() {
     for (const [exchangeId, exchange] of this.exchangeMap) {
       exchange.init();
-      exchange.on('updateStatus', status => {
+      exchange.on("updateStatus", status => {
         switch (status) {
           case ExchangeStatuses.idle: {
             break;
@@ -92,7 +90,7 @@ export default class Quant {
         }
       });
 
-      exchange.on('updateOrderBookByDataset', () => {});
+      exchange.on("updateOrderBookByDataset", () => {});
     }
   }
 
@@ -105,9 +103,9 @@ export default class Quant {
     for (const [bgPrice, orderBookItem] of marketOrderMap.entries()) {
       if (orderBookIndex++ >= this.orderBook.orderBookDepth) break;
 
-      const index = orderBookDataset.dataList.findIndex( x => x.bgPrice.eq(bgPrice));
-      if (index !== -1 ){
-        updatedPriceList.push([bgPrice, orderBookItem])
+      const index = orderBookDataset.dataList.findIndex(x => x.bgPrice.eq(bgPrice));
+      if (index !== -1) {
+        updatedPriceList.push([bgPrice, orderBookItem]);
       }
     }
 
@@ -116,18 +114,18 @@ export default class Quant {
       quoteAsset: orderBookDataset.quoteAsset,
       orderType: orderBookDataset.orderType,
       data: updatedPriceList
-    }
+    };
 
-    this.broadcastEngineMessage('updateOrderBook', data);
+    this.broadcastEngineMessage("updateOrderBook", data);
   }
 
   public addMarketList(exchangeId: ExchangeId, baseAsset: string, quoteAsset: string) {
     this.marketManager.addMarketList(exchangeId, baseAsset, quoteAsset);
-    
-    this.broadcastEngineMessage('marketList', this.marketManager.getMarketList());
-	}
 
-	public removeAllMarketByExchangeId(exchangeId: ExchangeId) {
+    this.broadcastEngineMessage("marketList", this.marketManager.getMarketList());
+  }
+
+  public removeAllMarketByExchangeId(exchangeId: ExchangeId) {
     this.marketManager.removeAllMarketByExchangeId(exchangeId);
   }
 

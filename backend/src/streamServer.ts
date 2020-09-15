@@ -39,7 +39,7 @@ export default class StreamServer {
         console.log("close");
       });
 
-      ws.on("message", (msg) => {
+      ws.on("message", msg => {
         this.messageHandler(msg);
       });
     });
@@ -70,24 +70,29 @@ export default class StreamServer {
 
   async requestEngineData(method: string, param?: any) {
     if (!this.ipc.of.engine) {
-      return console.log('fail to request engine data..');
+      return console.log("fail to request engine data..");
     }
 
     this.ipc.of.engine.emit(method, param);
   }
 
   async engineMessageHandler(method: string, msg: any) {
-    switch(method) {
+    switch (method) {
       case engineMethod.marketList: {
         console.dir(msg);
         break;
       }
       case engineMethod.orderBook: {
-        console.dir(msg)
+        console.log("test1..");
+        console.dir(msg);
+        for (const orderBookInfo of msg.ask) {
+          console.dir(orderBookInfo[0]);
+          console.dir(orderBookInfo[1]);
+        }
         break;
       }
       case engineMethod.updateOrderBook: {
-        console.dir(msg)
+        console.dir(msg.data);
         break;
       }
       default: {
@@ -100,11 +105,11 @@ export default class StreamServer {
     let message;
     try {
       message = JSON.parse(msg);
-    } catch(err) {
+    } catch (err) {
       return console.log(`fail to parse client message: ${JSON.parse(err)}`);
     }
 
-    switch(message.method) {
+    switch (message.method) {
       case method.market_list: {
         this.requestEngineData(engineMethod.marketList);
         break;
