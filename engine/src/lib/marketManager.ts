@@ -1,37 +1,41 @@
-import { ExchangeId } from '../common/constants';
+import { ExchangeId } from "../common/constants";
 
 export default class MarketManager {
-	private marketListByMarket: Map<string, Set<ExchangeId>> = new Map();
-	private marketListByExchangeId: Map<ExchangeId, Set<string>> = new Map();
+  private exchangeListByMarket: Map<string, Set<ExchangeId>> = new Map();
+  private marketListByExchangeId: Map<ExchangeId, Set<string>> = new Map();
 
-	constructor() {
+  constructor() {}
 
-	}
+  addMarketList(exchangeId: ExchangeId, baseAsset: string, quoteAsset: string) {
+    const market = `${baseAsset}/${quoteAsset}`;
+    let marketExchangeIdSet = this.exchangeListByMarket.get(market);
+    if (!marketExchangeIdSet) {
+      marketExchangeIdSet = new Set();
+      this.exchangeListByMarket.set(market, marketExchangeIdSet);
+    }
 
-	addMarketList(exchangeId: ExchangeId, baseAsset: string, quoteAsset: string) {
-		const market = `${baseAsset}/${quoteAsset}`;
-		let marketExchangeIdSet = this.marketListByMarket.get(market);
-		if (!marketExchangeIdSet) {
-			marketExchangeIdSet = new Set();
-			this.marketListByMarket.set(market, marketExchangeIdSet);
-		}
+    marketExchangeIdSet.add(exchangeId);
+  }
 
-		marketExchangeIdSet.add(exchangeId);
-	}
+  removeAllMarketByExchangeId(exchangeId: ExchangeId) {
+    for (const [market, exchangeIdSet] of this.exchangeListByMarket) {
+      exchangeIdSet.delete(exchangeId);
+    }
 
-	removeAllMarketByExchangeId(exchangeId: ExchangeId) {
-		for(const [market, exchangeIdSet] of this.marketListByMarket) {
-			exchangeIdSet.delete(exchangeId);
-		}
+    this.marketListByExchangeId.delete(exchangeId);
+  }
 
-		this.marketListByExchangeId.delete(exchangeId);
-	}
+  getMarketList(): any[] {
+    const result = [];
 
-	getMarketList(): Map<string, Set<ExchangeId>>{
-		return this.marketListByMarket;	
-	}
+    for (const [market, exchangeIdSet] of this.exchangeListByMarket) {
+      result.push([market, [...exchangeIdSet]]);
+    }
 
-	getMarketListByExchangeId(exchangeId: ExchangeId): Set<string> | undefined {
-		return this.marketListByExchangeId.get(exchangeId)
-	}
+    return result;
+  }
+
+  getMarketListByExchangeId(exchangeId: ExchangeId): Set<string> | undefined {
+    return this.marketListByExchangeId.get(exchangeId);
+  }
 }

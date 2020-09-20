@@ -1,27 +1,26 @@
-import OrderBook, { OrderBookDataset } from "./lib/orderBook";
+import OrderBookManafer, { OrderBookDataset } from "./lib/orderBook";
 import Binance from "./exchanges/binance";
 import Exchange, { ExchangeStatuses } from "./lib/exchange";
 import config from "../config/config.json";
 import { OrderType, ExchangeId } from "./common/constants";
 import { IPC } from "node-ipc";
-import marketManager from "./lib/marketManager";
 import MarketManager from "./lib/marketManager";
 
 export default class Quant {
   config: any;
 
-  orderBook: OrderBook;
+  orderBookManager: OrderBookManafer;
 
   exchangeMap: Map<ExchangeId, Exchange> = new Map();
 
   private ipc = new IPC();
   private processSet: Set<any> = new Set();
-  private marketManager: MarketManager = new marketManager();
+  private marketManager: MarketManager = new MarketManager();
 
   constructor(config: any) {
     this.config = config;
 
-    this.orderBook = new OrderBook(this.config);
+    this.orderBookManager = new OrderBookManafer(this.config);
 
     const binanceExchange = new Binance(this, this.config, this.config.exchanges.binance);
     this.exchangeMap.set(ExchangeId.binance, binanceExchange);
@@ -45,16 +44,11 @@ export default class Quant {
 
       this.ipc.server.on("marketList", (data: any, socket: any) => {
         const marketList = this.marketManager.getMarketList();
-        console.log(data);
         this.ipc.server.emit(socket, "marketList", marketList);
       });
 
       this.ipc.server.on("orderBook", (data: any, socket: any) => {
-        const snapshot = {
-          ask: this.orderBook.getOrderBookMap(OrderType.ask),
-          bid: this.orderBook.getOrderBookMap(OrderType.bid)
-        };
-
+        const snapshot = this.orderBookManager.getDepthFitableOrderBookMap();
         this.ipc.server.emit(socket, "orderBook", snapshot);
       });
     });
@@ -95,25 +89,14 @@ export default class Quant {
   }
 
   public updateOrderBookByDataset(orderBookDataset: OrderBookDataset) {
-    const marketOrderMap = this.orderBook.updateOrderBookByDataset(orderBookDataset);
-    if (!marketOrderMap) return;
-
-    let orderBookIndex = 0;
-    const updatedPriceList = [];
-    for (const [bgPrice, orderBookItem] of marketOrderMap.entries()) {
-      if (orderBookIndex++ >= this.orderBook.orderBookDepth) break;
-
-      const index = orderBookDataset.dataList.findIndex(x => x.bgPrice.eq(bgPrice));
-      if (index !== -1) {
-        updatedPriceList.push([bgPrice, orderBookItem]);
-      }
-    }
+    const depthFairOrderBook = this.orderBookManager.updateOrderBookByDataset(orderBookDataset);
+    if (!depthFairOrderBook) return;
 
     const data = {
       baseAsset: orderBookDataset.baseAsset,
       quoteAsset: orderBookDataset.quoteAsset,
       orderType: orderBookDataset.orderType,
-      data: updatedPriceList
+      data: depthFairOrderBook
     };
 
     this.broadcastEngineMessage("updateOrderBook", data);

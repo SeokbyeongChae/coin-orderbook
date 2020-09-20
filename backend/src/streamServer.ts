@@ -1,5 +1,10 @@
 import WebSocket from "ws";
 import { IPC } from "node-ipc";
+import OrderBookManager from "./lib/orderBook";
+import config from "../config/config.json";
+import { OrderType, MethodType, Method } from "./common/constants";
+import StreamClient from "./streamClient";
+import MarketManager from "./lib/marketManager";
 
 const enum engineMethod {
   orderBook = "orderBook",
@@ -7,41 +12,40 @@ const enum engineMethod {
   marketList = "marketList"
 }
 
-const enum method {
-  market_list = "market/list"
-}
+// const enum methodType
 
 export default class StreamServer {
   // private engineSock = new zmq.Subscriber();
+  private orderBookManager: OrderBookManager = new OrderBookManager(config);
+  private marketManager: MarketManager = new MarketManager();
+
   private ipc = new IPC();
   private wss: WebSocket.Server | undefined;
 
-  private clientListSet: Set<WebSocket> = new Set();
+  private clientListMap: Map<WebSocket, StreamClient> = new Map();
 
-  messageCnt: number = 0;
+  // <socket, param>
+  private orderBookSubMap: Map<any, any> = new Map();
+  private subscriberMap: Map<Method, Map<any, any>> = new Map();
+
   constructor() {
     this.ipc.config.id = "client";
     this.ipc.config.retry = 1500;
     this.ipc.config.silent = true;
+
+    this.initSubscriberMap();
+    this.initMarketManagerEventHandler();
+    this.initOrderBookManagerEventHandler();
   }
 
-  async start() {
+  async startServer() {
     this.wss = new WebSocket.Server({
       port: 4000
     });
 
     this.wss.on("connection", (ws: WebSocket, req: Request) => {
-      this.clientListSet.add(ws);
-      console.log("connection");
-
-      ws.on("close", () => {
-        this.clientListSet.delete(ws);
-        console.log("close");
-      });
-
-      ws.on("message", msg => {
-        this.messageHandler(msg);
-      });
+      console.log("connect client..");
+      this.clientListMap.set(ws, new StreamClient(this, ws));
     });
   }
 
@@ -79,20 +83,19 @@ export default class StreamServer {
   async engineMessageHandler(method: string, msg: any) {
     switch (method) {
       case engineMethod.marketList: {
-        console.dir(msg);
+        this.marketManager.updateMarketList(msg);
         break;
       }
       case engineMethod.orderBook: {
-        console.log("test1..");
-        console.dir(msg);
-        for (const orderBookInfo of msg.ask) {
-          console.dir(orderBookInfo[0]);
-          console.dir(orderBookInfo[1]);
+        for (const orderBook of msg) {
+          const markets = orderBook.market.split("/");
+          this.orderBookManager.udateOrderBook(markets[0], markets[1], OrderType.ask, orderBook.ask);
+          this.orderBookManager.udateOrderBook(markets[0], markets[1], OrderType.bid, orderBook.bid);
         }
         break;
       }
       case engineMethod.updateOrderBook: {
-        console.dir(msg.data);
+        this.orderBookManager.udateOrderBook(msg.baseAsset, msg.quoteAsset, msg.orderType, msg.data);
         break;
       }
       default: {
@@ -101,57 +104,63 @@ export default class StreamServer {
     }
   }
 
-  async messageHandler(msg: any) {
-    let message;
-    try {
-      message = JSON.parse(msg);
-    } catch (err) {
-      return console.log(`fail to parse client message: ${JSON.parse(err)}`);
-    }
-
-    switch (message.method) {
-      case method.market_list: {
-        this.requestEngineData(engineMethod.marketList);
-        break;
-      }
-      default: {
-        console.log(`unknown client methid: ${msg}`);
-      }
-    }
+  private initSubscriberMap() {
+    this.subscriberMap.set(Method.subscribeMarket, new Map());
+    this.subscriberMap.set(Method.subscribeOrderBook, new Map());
   }
 
-  /*
-  async connectEngine(): Promise<boolean> {
-    console.log("connect engine..");
-    this.engineSock.connect("tcp://127.0.0.1:3456");
-
-    this.subscribe(subscribeMethod.orderBook);
-
-    for await (const [topic, msg] of this.engineSock) {
-      this.messageHandler(topic, msg);
+  public privateDataSub(subscribeType: Method, client: StreamClient, compare: any) {
+    const subscribeMap = this.subscriberMap.get(subscribeType);
+    if (!subscribeMap) {
+      return console.log(`fail to subscribe: ${subscribeType}`);
     }
 
-    return true;
+    subscribeMap.set(client, compare);
   }
 
-  async subscribe(topic: string) {
-    this.engineSock.subscribe(msgpack.pack(topic));
-  }
-
-  messageHandler(rawTopic: any, rawMsg: any) {
-    const topic = msgpack.unpack(rawTopic);
-    const msg = msgpack.unpack(rawMsg);
-
-    switch (topic) {
-      case subscribeMethod.orderBook: {
-        // console.dir(msg);
-        if (++this.messageCnt % 100 === 0) console.log(this.messageCnt);
-        break;
-      }
-      default: {
-        console.log(`unknown subscribe method: ${topic}`);
-      }
+  public privateDataUnsub(subscribeType: Method, client: StreamClient) {
+    const subscribeMap = this.subscriberMap.get(subscribeType);
+    if (!subscribeMap) {
+      return console.log(`fail to unsubscribe: ${subscribeType}`);
     }
+
+    subscribeMap.delete(client);
   }
-  */
+
+  private distributeSubscriptionData(subscribeType: Method, data: any) {
+    const subscribeMap = this.subscriberMap.get(subscribeType);
+    if (!subscribeMap) {
+      return console.log(`cannot define subscribe type: ${subscribeType}`);
+    }
+
+    subscribeMap.forEach((compare, client) => {
+      if (!compare) {
+        client.sendMessage(MethodType.subscribe, subscribeType, data);
+      } else {
+        if (compare(data)) {
+          client.sendMessage(MethodType.subscribe, subscribeType, data);
+        }
+      }
+    });
+  }
+
+  public getMarketList(): any[] {
+    return this.marketManager.getMarketList();
+  }
+
+  public getOrderBook(baseAsset: string, quoteAsset: string): any {
+    return this.orderBookManager.getOrderBooK(baseAsset, quoteAsset);
+  }
+
+  private initMarketManagerEventHandler() {
+    this.marketManager.on("updateMarketList", (marketList: any[]) => {
+      this.distributeSubscriptionData(Method.subscribeMarket, marketList);
+    });
+  }
+
+  private initOrderBookManagerEventHandler() {
+    this.orderBookManager.on("updateOrderBook", (orderBook: any) => {
+      this.distributeSubscriptionData(Method.subscribeOrderBook, orderBook);
+    });
+  }
 }

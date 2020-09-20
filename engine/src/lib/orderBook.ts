@@ -2,13 +2,10 @@ import Big from "big.js";
 import Util from "../common/util";
 import { OrderType, ExchangeId } from "../common/constants";
 
-export default class OrderBook {
-  // askMap: any = Util.createDescSortedMap();
-  // bidMap: any = Util.createAscSortedMap();
-  askMap: Map<string, any> = new Map();
-  bidMap: Map<string, any> = new Map();
-  config: any;
+export default class OrderBookManager {
+  orderBookMap: Map<string, OrderBook> = new Map();
 
+  config: any;
   orderBookDepth: number;
 
   constructor(config: any) {
@@ -18,86 +15,108 @@ export default class OrderBook {
 
   public updateOrderBookByDataset(dataset: OrderBookDataset): any {
     const market = `${dataset.baseAsset}/${dataset.quoteAsset}`;
-    const marketOrderBookMap = this.getMarketOrderBookMap(dataset.orderType, market);
 
-    // const result = [];
+    let marketOrderBookMap = this.orderBookMap.get(market);
+    if (!marketOrderBookMap) {
+      marketOrderBookMap = new OrderBook(this.orderBookDepth);
+      this.orderBookMap.set(market, marketOrderBookMap);
+    }
+
+    return marketOrderBookMap.updateOrderBookByDataset(dataset);
+  }
+
+  public getDepthFitableOrderBookMap() {
+    const result = [];
+    for (const [market, orderBook] of this.orderBookMap) {
+      result.push({
+        market: market,
+        ask: orderBook.getFitableOrderBookList(OrderType.ask),
+        bid: orderBook.getFitableOrderBookList(OrderType.bid)
+      });
+    }
+
+    return result;
+  }
+
+  public getOrderBookMap(): Map<string, OrderBook> {
+    return this.orderBookMap;
+  }
+
+  public getOrderBook(baseAsset: string, quoteAsset: string): OrderBook | undefined {
+    return this.orderBookMap.get(`${baseAsset}/${quoteAsset}`);
+  }
+}
+
+export class OrderBook {
+  askMap: any = Util.createAscSortedMap();
+  bidMap: any = Util.createDescSortedMap();
+  depth: number;
+
+  constructor(depth: number) {
+    this.depth = depth;
+  }
+
+  public updateOrderBookByDataset(dataset: OrderBookDataset): any {
+    const orderBookMap = this.getOrderBookMap(dataset.orderType);
+
     for (const item of dataset.dataList) {
-      let orderBookItem = marketOrderBookMap.get(item.bgPrice);
       if (item.bgAmount) {
+        let orderBookItem = orderBookMap.get(item.bgPrice);
         if (!orderBookItem) {
-          orderBookItem = new OrderBookItem();
-          marketOrderBookMap.set(item.bgPrice, orderBookItem);
+          orderBookItem = new OrderBookItem(item.bgPrice);
+          orderBookMap.set(item.bgPrice, orderBookItem);
         }
 
         orderBookItem.updateAmount(dataset.exchangeId, item.bgAmount);
-
-        // result.push([item.bgPrice, orderBookItem]);
       } else {
+        const orderBookItem = orderBookMap.get(item.bgPrice);
         if (!orderBookItem) continue;
 
         orderBookItem.removeExchange(dataset.exchangeId);
         if (orderBookItem.isEmpty()) {
-          marketOrderBookMap.delete(item.bgPrice);
-
-          // result.push([item.bgPrice, undefined]);
+          orderBookMap.delete(item.bgPrice);
         }
       }
     }
 
-    return marketOrderBookMap;
+    return this.getFitableOrderBookList(dataset.orderType);
   }
 
   public getOrderBookMap(orderType: OrderType): any {
     return orderType === OrderType.ask ? this.askMap : this.bidMap;
   }
 
-  public getMarketOrderBookMap(orderType: OrderType, market: string) {
+  public getFitableOrderBookList(orderType: OrderType) {
     const orderBookMap = this.getOrderBookMap(orderType);
-    if (orderBookMap.has(market)) {
-      return orderBookMap.get(market);
-    }
-
-    const marketOrderBookMap = orderType === OrderType.ask ? Util.createDescSortedMap() : Util.createAscSortedMap();
-    orderBookMap.set(market, marketOrderBookMap);
-    return marketOrderBookMap;
+    return orderBookMap.toArray().slice(0, this.depth);
   }
-
-  /*
-  public setMarketOrderBookMap(orderType: OrderType, market: string) {
-    const orderBookMap = this.getOrderBookMap(orderType);
-    if (orderBookMap.has(market)) {
-      return orderBookMap.get(market);
-    }
-
-    const marketOrderBookMap = orderType === OrderType.ask ? Util.createDescSortedMap() : Util.createAscSortedMap();
-    orderBookMap.set(market, marketOrderBookMap);
-    return marketOrderBookMap;
-	}
-	*/
 }
 
 class OrderBookItem {
+  bgPrice: Big;
   totalAmount: Big = new Big(0);
-  exchnageList: Map<ExchangeId, Big> = new Map();
+  exchangeList: Map<ExchangeId, Big> = new Map();
 
-  constructor() {}
+  constructor(bgPrice: Big) {
+    this.bgPrice = bgPrice;
+  }
 
   updateAmount(exchangeId: ExchangeId, bgAmount: Big) {
-    const bgExchangeAmount = this.exchnageList.get(exchangeId);
+    const bgExchangeAmount = this.exchangeList.get(exchangeId);
     if (bgExchangeAmount) {
       this.totalAmount = this.totalAmount.minus(bgExchangeAmount).plus(bgAmount);
     } else {
       this.totalAmount = this.totalAmount.plus(bgAmount);
     }
-    this.exchnageList.set(exchangeId, bgAmount);
+    this.exchangeList.set(exchangeId, bgAmount);
   }
 
   removeExchange(exchangeId: ExchangeId) {
-    const bgExchangeAmount = this.exchnageList.get(exchangeId);
-    if (!bgExchangeAmount) return console.log("check...");
+    const bgExchangeAmount = this.exchangeList.get(exchangeId);
+    if (!bgExchangeAmount) return;
 
     this.totalAmount = this.totalAmount.minus(bgExchangeAmount);
-    this.exchnageList.delete(exchangeId);
+    this.exchangeList.delete(exchangeId);
   }
 
   getTotalAmount() {
@@ -105,11 +124,11 @@ class OrderBookItem {
   }
 
   getExchangeCount(): number {
-    return this.exchnageList.size;
+    return this.exchangeList.size;
   }
 
   isEmpty(): boolean {
-    return this.exchnageList.size === 0;
+    return this.exchangeList.size === 0;
   }
 }
 
