@@ -26,10 +26,10 @@ class OrderBook {
 
   update(data) {
     this.market = data.market;
-    if (data.marketOrderBook) {
-      this.asks = data.marketOrderBook.askMap;
-      this.bids = data.marketOrderBook.bidMap;
-    }
+    // if (data.marketOrderBook) {
+    this.asks = data.marketOrderBook.askMap;
+    this.bids = data.marketOrderBook.bidMap;
+    // }
   }
 }
 
@@ -46,7 +46,7 @@ export const mutations = {
       return;
     }
 
-    // state.orderBook.update(data);
+    state.orderBook.update(data);
   },
 
   updateMarketInfo(state, data) {
