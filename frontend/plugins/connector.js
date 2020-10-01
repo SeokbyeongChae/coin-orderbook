@@ -25,11 +25,11 @@ export default (context, inject) => {
   };
 
   const connect = (url, vuex) => {
-    // ws = new WebSocket(
-    //   "ws://ec2-3-133-111-6.us-east-2.compute.amazonaws.com/ws"
-    // );
+    ws = new WebSocket(
+      "ws://ec2-3-133-111-6.us-east-2.compute.amazonaws.com/ws"
+    );
 
-    ws = new WebSocket("ws://127.0.0.1:4000/ws");
+    // ws = new WebSocket("ws://127.0.0.1:4000/ws");
 
     ws.onopen = () => {
       console.log("connect to websock..");

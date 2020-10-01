@@ -27,6 +27,13 @@ export default class StreamClient {
     });
 
     this.sendMessage(MethodType.notification, Method.connected);
+    this.keepConnected();
+  }
+
+  keepConnected() {
+    setInterval(() => {
+      this.sendMessage(MethodType.notification, Method.ping);
+    }, 15000);
   }
 
   sendMessage(methodType: MethodType, method: Method, data?: any) {
