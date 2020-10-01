@@ -25,9 +25,11 @@ export default class StreamClient {
       this.server.privateDataUnsub(Method.subscribeOrderBook, this);
       console.log("disconnected client..");
     });
+
+    this.sendMessage(MethodType.notification, Method.connected);
   }
 
-  sendMessage(methodType: MethodType, method: any, data: any) {
+  sendMessage(methodType: MethodType, method: Method, data?: any) {
     const option = {
       methodType,
       method,
@@ -68,6 +70,15 @@ export default class StreamClient {
         break;
       }
       case MethodType.call: {
+        break;
+      }
+      case MethodType.notification: {
+        switch (method) {
+          case Method.pong: {
+            console.log("receive pong message..");
+            break;
+          }
+        }
         break;
       }
     }

@@ -25,7 +25,11 @@ export default (context, inject) => {
   };
 
   const connect = (url, vuex) => {
-    ws = new WebSocket("ws://localhost:4000");
+    // ws = new WebSocket(
+    //   "ws://ec2-3-133-111-6.us-east-2.compute.amazonaws.com/ws"
+    // );
+
+    ws = new WebSocket("ws://127.0.0.1:4000/ws");
 
     ws.onopen = () => {
       console.log("connect to websock..");
@@ -43,6 +47,11 @@ export default (context, inject) => {
           method < Vue.prototype.$method.market_end
         ) {
           vuex.dispatch("market/messageHandler", message);
+        } else if (
+          method > Vue.prototype.$method.notification_start &&
+          method < Vue.prototype.$method.notification_end
+        ) {
+          vuex.dispatch("notification/messageHandler", message);
         }
       } catch (err) {
         console.log(`message error: ${err}`);

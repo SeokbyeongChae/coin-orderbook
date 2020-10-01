@@ -70,7 +70,7 @@ class OrderBook {
       }
     }
 
-    for (const [bgPrice, orderBookItem] of orderMap.entries()) {
+    for (const [bgPrice, orderBookItem] of orderMap.entriesArray()) {
       if (!orderBookItem.updated) {
         orderMap.delete(bgPrice);
       } else {
