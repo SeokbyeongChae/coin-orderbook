@@ -12,11 +12,18 @@ export default class StreamClient {
 
     this.ws.on("message", (message: any) => {
       try {
+        this.messageHandler(JSON.parse(message));
+      } catch (err) {
+        console.log(`message error: ${message}`);
+      }
+      /*
+      try {
         console.dir(msgpack.decode(message));
         this.messageHandler(msgpack.decode(message));
       } catch (err) {
         console.log(`message error: ${JSON.stringify(message)}`);
       }
+      */
     });
 
     this.ws.on("close", () => {
