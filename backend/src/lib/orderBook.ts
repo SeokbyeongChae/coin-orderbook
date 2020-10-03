@@ -47,7 +47,8 @@ export default class OrderBookManager extends TypedEmitter<OrderBookManagerEvent
 }
 
 class OrderBook {
-  private askMap: any = Util.createAscSortedMap();
+  // private askMap: any = Util.createAscSortedMap();
+  private askMap: any = Util.createDescSortedMap();
   private bidMap: any = Util.createDescSortedMap();
 
   private depth: number;

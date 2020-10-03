@@ -70,8 +70,11 @@ export default class StreamClient {
           }
           case Method.subscribeOrderBook: {
             const markets = params.market.split("/");
-            const test = this.server.getOrderBook(markets[0], markets[1]);
-            this.sendMessage(type, method, this.server.getOrderBook(markets[0], markets[1]));
+            const param = {
+              market: params.market,
+              marketOrderBook: this.server.getOrderBook(markets[0], markets[1])
+            };
+            this.sendMessage(type, method, param);
             this.server.privateDataSub(method, this, (param: any) => {
               return param.market === params.market;
             });

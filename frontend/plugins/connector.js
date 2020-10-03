@@ -16,20 +16,29 @@ export default (context, inject) => {
     );
 
     ws.send(
+      JSON.stringify({
+        type,
+        method,
+        params
+      })
+    );
+    /*
+    ws.send(
       msgpack.encode({
         type,
         method,
         params
       })
     );
+    */
   };
 
   const connect = (url, vuex) => {
-    ws = new WebSocket(
-      "ws://ec2-3-133-111-6.us-east-2.compute.amazonaws.com/ws"
-    );
+    // ws = new WebSocket(
+    //   "ws://ec2-3-133-111-6.us-east-2.compute.amazonaws.com/ws"
+    // );
 
-    // ws = new WebSocket("ws://127.0.0.1:4000/ws");
+    ws = new WebSocket("ws://127.0.0.1:4000/ws");
 
     ws.onopen = () => {
       console.log("connect to websock..");
@@ -37,6 +46,7 @@ export default (context, inject) => {
     };
 
     ws.onmessage = rawMessage => {
+      // console.log(rawMessage.data);
       try {
         const message = JSON.parse(rawMessage.data);
         // console.log(`receive message: ${JSON.stringify(message)}`);
