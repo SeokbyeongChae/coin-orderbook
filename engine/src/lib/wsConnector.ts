@@ -3,7 +3,7 @@ import { TypedEmitter } from "tiny-typed-emitter";
 
 export enum WebSocketStatuses {
   idle = 1,
-  running = 2,
+  running = 2
 }
 
 interface ExchangeEvents {

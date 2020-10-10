@@ -11,6 +11,7 @@ class WebSocketData with ChangeNotifier {
 
   var askMap;
   var bidMap;
+  var marketList;
 
   WebSocketData() {
     this.connect();
@@ -62,12 +63,16 @@ class WebSocketData with ChangeNotifier {
           switch (method) {
             case common.subscribeMarket:
               {
-                print(rawMessage);
+                print('update marketlist');
+                this.marketList = jsonDecode(rawMessage)['data'];
+                print(this.marketList.length);
+
+                notifyListeners();
                 break;
               }
             case common.subscribeOrderBook:
               {
-                print('update orderbook..');
+                // print('update orderbook..');
                 // print(jsonDecode(rawMessage)['data']['marketOrderBook']['askMap'][1]);
                 this.askMap = jsonDecode(rawMessage)['data']['marketOrderBook']['askMap'];
                 this.bidMap = jsonDecode(rawMessage)['data']['marketOrderBook']['bidMap'];

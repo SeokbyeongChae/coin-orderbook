@@ -1,5 +1,5 @@
 import { Big } from "big.js";
-import Exchange from "../lib/exchange";
+import Exchange, { ExchangeStatuses } from "../lib/exchange";
 import WSConnector from "../lib/wsConnector";
 import Util from "../common/util";
 import Sleep from "sleep-promise";
@@ -22,10 +22,11 @@ export default class Binance extends Exchange {
   }
 
   init(): void {
-    this.wsConnector.start();
+    this.updateMarketInfoTimer();
 
     this.wsConnector.on("open", async () => {
       console.log("connect binance..");
+      this.emit("updateStatus", ExchangeStatuses.running);
 
       const exchangeInfoList = await this.getExchangeInformation();
       if (!exchangeInfoList) {
@@ -36,7 +37,7 @@ export default class Binance extends Exchange {
       for (let i = 0; i < exchangeInfoList.length; i++) {
         const exchangeInfo = exchangeInfoList[i];
         this.exchangeInfoMap.set(exchangeInfo.symbol, exchangeInfo);
-        this.quant.addMarketList(this.id, exchangeInfo.baseAsset, exchangeInfo.quoteAsset);
+        // this.quant.addMarketList(this.id, exchangeInfo.baseAsset, exchangeInfo.quoteAsset);
 
         this.tempOrderBookInitialized.set(exchangeInfo.symbol, false);
         this.tempOrderBookStreamBuffer.set(exchangeInfo.symbol, new Map());
@@ -69,7 +70,7 @@ export default class Binance extends Exchange {
         const tempOrderBookBuffer = this.tempOrderBookStreamBuffer.get(exchangeInfo.symbol);
         if (!tempOrderBookBuffer) {
           this.tempOrderBookInitialized.set(exchangeInfo.symbol, true);
-          await Sleep(500);
+          await Sleep(200);
           continue;
         }
 
@@ -80,12 +81,8 @@ export default class Binance extends Exchange {
         }
 
         this.tempOrderBookInitialized.set(exchangeInfo.symbol, true);
-        await Sleep(500);
+        await Sleep(200);
       }
-
-      // request marketList
-
-      //
     });
 
     this.wsConnector.on("message", message => {
@@ -93,13 +90,27 @@ export default class Binance extends Exchange {
     });
 
     this.wsConnector.on("close", async () => {
-      console.log('close..');
-    })
+      console.log("close binance..");
+      this.emit("updateStatus", ExchangeStatuses.disconnected);
+    });
+
+    this.wsConnector.on("error", async err => {
+      console.log(`error binance : ${JSON.stringify(err)}`);
+      // this.emit("updateStatus", ExchangeStatuses.disconnected);
+    });
+
+    this.emit("updateStatus", ExchangeStatuses.initialized);
   }
 
-  start(): void {}
+  start(): void {
+    console.log("start binance..");
+    this.wsConnector.start();
+  }
 
-  stop(): void {}
+  stop(): void {
+    this.tempOrderBookStreamBuffer.clear();
+    this.tempOrderBookInitialized.clear();
+  }
 
   private updateOrderBook(baseAsset: string, quoteAsset: string, orderType: OrderType, data: any[]) {
     const orderbookData: OrderBookDatasetItem[] = [];
@@ -111,6 +122,29 @@ export default class Binance extends Exchange {
     }
 
     this.updateOrderBookByDataset(baseAsset, quoteAsset, this.id, orderType, orderbookData);
+  }
+
+  private async updateMarketInfoTimer() {
+    const execution = async () => {
+      const exchangeInfoList = await this.getExchangeInformation();
+      if (!exchangeInfoList) {
+        return console.log("binance get exchange information error..");
+      }
+
+      const marketList: string[] = [];
+      for (let i = 0; i < exchangeInfoList.length; i++) {
+        const exchangeInfo = exchangeInfoList[i];
+        // marketList.push([exchangeInfo.baseAsset, exchangeInfo.quoteAsset]);
+        marketList.push(`${exchangeInfo.baseAsset}/${exchangeInfo.quoteAsset}`);
+      }
+
+      this.quant.updateMarketList(this.id, marketList);
+    };
+
+    await execution();
+    setInterval(async () => {
+      await execution();
+    }, 1000 * 60 * 60 * 24);
   }
 
   async getExchangeInformation(): Promise<BinanceExchangeInformation[] | undefined> {
@@ -128,6 +162,7 @@ export default class Binance extends Exchange {
     const dataList: BinanceExchangeInformation[] = [];
     for (const symbol of result.data.symbols) {
       if (!this.quant.isAvailableMarket(symbol.baseAsset, symbol.quoteAsset)) continue;
+      if (symbol.status !== "TRADING" || symbol.permissions.findIndex((x: string) => x === "SPOT") === -1) continue;
 
       dataList.push({
         symbol: symbol.symbol,

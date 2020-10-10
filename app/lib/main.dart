@@ -43,12 +43,66 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.teal[100],
       ),
       // home: OrderBookScreen(),
-      initialRoute: MarketListScreen.id,
-      routes: {
-        MarketListScreen.id: (context) => MarketListScreen(),
-        OrderBookScreen.id: (context) => OrderBookScreen(),
-      },
+      // initialRoute: MarketListScreen.id,
+      // routes: {
+      //   MarketListScreen.id: (context) => MarketListScreen(),
+      // OrderBookScreen.id: (context) => OrderBookScreen(),
+      // },
       // home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: AppHome(),
+    );
+  }
+}
+
+class AppHome extends StatefulWidget {
+  @override
+  _AppHomeState createState() => _AppHomeState();
+}
+
+class _AppHomeState extends State<AppHome> {
+  int _selectedIndex = 0;
+  static const TextStyle optionStyle = TextStyle(fontSize: 30, fontWeight: FontWeight.bold);
+  static List<Widget> _widgetOptions = <Widget>[
+    MarketListScreen(),
+    OrderBookScreen(),
+    OrderBookScreen(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+
+      if (index == 0) {
+        // Navigator.pushNamed(context, MarketListScreen.id);
+      } else if (index == 1) {
+        // Navigator.pushNamed(context, OrderBookScreen.id);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _widgetOptions[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            title: Text('Market'),
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.business),
+            title: Text('Orderbook'),
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.school),
+            title: Text('Etc.'),
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.amber[800],
+        onTap: _onItemTapped,
+      ),
     );
   }
 }

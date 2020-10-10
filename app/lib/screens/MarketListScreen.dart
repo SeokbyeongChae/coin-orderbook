@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:orderbook/screens/OrderBookScreen.dart';
+import 'package:provider/provider.dart';
+import 'package:orderbook/data/webSocketData.dart';
 
 class MarketListScreen extends StatefulWidget {
   static const id = 'marketListScreen';
@@ -9,58 +11,29 @@ class MarketListScreen extends StatefulWidget {
 }
 
 class _MarketListScreenState extends State<MarketListScreen> {
-  int _selectedIndex = 0;
-  static const TextStyle optionStyle = TextStyle(fontSize: 30, fontWeight: FontWeight.bold);
-  static const List<Widget> _widgetOptions = <Widget>[
-    Text(
-      'Index 0: Home',
-      style: optionStyle,
-    ),
-    Text(
-      'Index 1: Business',
-      style: optionStyle,
-    ),
-    Text(
-      'Index 2: School',
-      style: optionStyle,
-    ),
-  ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-
-      if (index == 0) {
-        Navigator.pushNamed(context, MarketListScreen.id);
-      } else if (index == 1) {
-        Navigator.pushNamed(context, OrderBookScreen.id);
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            title: Text('Home'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.business),
-            title: Text('Business'),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.school),
-            title: Text('School'),
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.amber[800],
-        onTap: _onItemTapped,
+      body: SafeArea(
+        child: Column(
+          children: <Widget>[
+            Text(context.watch<WebSocketData>().marketList == null ? '' : context.watch<WebSocketData>().marketList.length.toString()),
+            Expanded(
+              child: _buildListView(),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildListView() {
+    return ListView.builder(
+      itemCount: context.watch<WebSocketData>().marketList == null ? 0 : context.watch<WebSocketData>().marketList.length,
+      // itemCount: 0,
+      itemBuilder: (context, index) {
+        return Text(context.watch<WebSocketData>().marketList[index].toString());
+      },
     );
   }
 }

@@ -17,6 +17,42 @@ export default class MarketManager {
     marketExchangeIdSet.add(exchangeId);
   }
 
+  updateMarketList(exchangeId: ExchangeId, marketList: string[]) {
+    let exchangeMarketSet = this.marketListByExchangeId.get(exchangeId);
+    if (!exchangeMarketSet) {
+      exchangeMarketSet = new Set();
+      this.marketListByExchangeId.set(exchangeId, exchangeMarketSet);
+    }
+
+    for (let market of exchangeMarketSet) {
+      if (marketList.findIndex((x: string) => x === market) === -1) {
+        exchangeMarketSet.delete(market);
+
+        const exchangeSet = this.exchangeListByMarket.get(market);
+        if (!exchangeSet) continue;
+
+        exchangeSet.delete(exchangeId);
+        if (exchangeSet.size === 0) {
+          this.exchangeListByMarket.delete(market);
+        }
+      }
+    }
+
+    for (let market of marketList) {
+      if (!exchangeMarketSet.has(market)) {
+        exchangeMarketSet.add(market);
+
+        let exchangeSet = this.exchangeListByMarket.get(market);
+        if (!exchangeSet) {
+          exchangeSet = new Set();
+          this.exchangeListByMarket.set(market, exchangeSet);
+        }
+
+        exchangeSet.add(exchangeId);
+      }
+    }
+  }
+
   removeAllMarketByExchangeId(exchangeId: ExchangeId) {
     for (const [market, exchangeIdSet] of this.exchangeListByMarket) {
       exchangeIdSet.delete(exchangeId);
@@ -33,9 +69,5 @@ export default class MarketManager {
     }
 
     return result;
-  }
-
-  getMarketListByExchangeId(exchangeId: ExchangeId): Set<string> | undefined {
-    return this.marketListByExchangeId.get(exchangeId);
   }
 }

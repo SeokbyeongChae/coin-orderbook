@@ -25,6 +25,13 @@ export default class OrderBookManager {
     return marketOrderBookMap.updateOrderBookByDataset(dataset);
   }
 
+  public removeOrderBookByExchangeId(exchangeId: ExchangeId) {
+    for (const [market, orderBook] of this.orderBookMap) {
+      orderBook.removeOrderBookByExchangeId(exchangeId, OrderType.ask);
+      orderBook.removeOrderBookByExchangeId(exchangeId, OrderType.bid);
+    }
+  }
+
   public getDepthFitableOrderBookMap() {
     const result = [];
     for (const [market, orderBook] of this.orderBookMap) {
@@ -90,6 +97,14 @@ export class OrderBook {
     const orderBookMap = this.getOrderBookMap(orderType);
     return orderBookMap.toArray().slice(0, this.depth);
   }
+
+  public removeOrderBookByExchangeId(exchangeId: ExchangeId, orderType: OrderType) {
+    const orderBookMap = this.getOrderBookMap(orderType);
+    for (const [bgPrice, orderBookItem] of orderBookMap) {
+      const resultCnt = orderBookItem.removeExchange(exchangeId);
+      if (resultCnt === 0) orderBookMap.delete(bgPrice);
+    }
+  }
 }
 
 class OrderBookItem {
@@ -117,6 +132,7 @@ class OrderBookItem {
 
     this.totalAmount = this.totalAmount.minus(bgExchangeAmount);
     this.exchangeList.delete(exchangeId);
+    return this.exchangeList.size;
   }
 
   getTotalAmount() {

@@ -12,6 +12,9 @@ class _OrderBookScreenState extends State<OrderBookScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('Order Book'),
+      ),
       body: Container(
         child: Column(
           children: <Widget>[

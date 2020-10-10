@@ -64,7 +64,6 @@ export default class Quant {
 
   public start() {
     for (const [exchangeId, exchange] of this.exchangeMap) {
-      exchange.init();
       exchange.on("updateStatus", status => {
         switch (status) {
           case ExchangeStatuses.idle: {
@@ -79,12 +78,14 @@ export default class Quant {
           }
           case ExchangeStatuses.disconnected: {
             exchange.stop();
+            this.orderBookManager.removeOrderBookByExchangeId(exchangeId);
+            exchange.start();
             break;
           }
         }
       });
 
-      exchange.on("updateOrderBookByDataset", () => {});
+      exchange.init();
     }
   }
 
@@ -100,6 +101,15 @@ export default class Quant {
     };
 
     this.broadcastEngineMessage("updateOrderBook", data);
+  }
+
+  public removeOrderBookByExchangeId(exchangeId: ExchangeId) {
+    this.orderBookManager.removeOrderBookByExchangeId(exchangeId);
+  }
+
+  public updateMarketList(exchangeId: ExchangeId, marketList: string[]) {
+    this.marketManager.updateMarketList(exchangeId, marketList);
+    this.broadcastEngineMessage("marketList", this.marketManager.getMarketList());
   }
 
   public addMarketList(exchangeId: ExchangeId, baseAsset: string, quoteAsset: string) {
