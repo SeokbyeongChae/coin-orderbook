@@ -1,5 +1,7 @@
 import OrderBookManafer, { OrderBookDataset } from "./lib/orderBook";
 import Binance from "./exchanges/binance";
+import Coinbase from "./exchanges/coinbase";
+import Bitfinex from "./exchanges/bitfinex";
 import Exchange, { ExchangeStatuses } from "./lib/exchange";
 import config from "../config/config.json";
 import { OrderType, ExchangeId } from "./common/constants";
@@ -24,6 +26,12 @@ export default class Quant {
 
     const binanceExchange = new Binance(this, this.config, this.config.exchanges.binance);
     this.exchangeMap.set(ExchangeId.binance, binanceExchange);
+
+    const bitfinexExchange = new Bitfinex(this, this.config, this.config.exchanges.bitfinex);
+    this.exchangeMap.set(ExchangeId.bitfinex, bitfinexExchange);
+
+    const coinbaseExchage = new Coinbase(this, this.config, this.config.exchanges.coinbase);
+    this.exchangeMap.set(ExchangeId.coinbase, coinbaseExchage);
 
     this.ipc.config.id = "engine";
     this.ipc.config.retry = 1500;
@@ -64,6 +72,8 @@ export default class Quant {
 
   public start() {
     for (const [exchangeId, exchange] of this.exchangeMap) {
+      if (!exchange.exchangeConfig.enabled) continue;
+
       exchange.on("updateStatus", status => {
         switch (status) {
           case ExchangeStatuses.idle: {

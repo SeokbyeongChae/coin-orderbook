@@ -3,8 +3,20 @@
     "binance": {
       "webSocketUrl": "wss://stream.binance.com:9443/ws",
       "endPoint": "https://api.binance.com",
-      "enabled": "true",
+      "enabled": true,
       "id": 1
+    },
+    "coinbase": {
+      "webSocketUrl": "wss://ws-feed-public.sandbox.pro.coinbase.com",
+      "endPoint": "https://api-public.sandbox.pro.coinbase.com",
+      "enabled": false,
+      "id": 2
+    },
+    "bitfinex": {
+      "webSocketUrl": "wss://api-pub.bitfinex.com/ws/2",
+      "endPoint": "https://api-pub.bitfinex.com/v2",
+      "enabled": true,
+      "id": 3
     }
   },
   "quoteAssetList": ["EUR", "TUSD", "USDT", "USDC", "KRW", "BTC"],

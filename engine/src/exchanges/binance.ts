@@ -4,13 +4,13 @@ import WSConnector from "../lib/wsConnector";
 import Util from "../common/util";
 import Sleep from "sleep-promise";
 import Quant from "../quant";
-import { OrderBookDataset, OrderBookDatasetItem } from "../lib/orderBook";
+import { OrderBookDatasetItem } from "../lib/orderBook";
 import { OrderType } from "../common/constants";
 
 export default class Binance extends Exchange {
   wsConnector: BinanceWSConnector;
   exchangeInfoMap: Map<string, BinanceExchangeInformation> = new Map();
-  exchangeInfoList: BinanceExchangeInformation[] | undefined;
+  // exchangeInfoList: BinanceExchangeInformation[] | undefined;
 
   tempOrderBookStreamBuffer: Map<string, Map<number, any>> = new Map();
   tempOrderBookInitialized: Map<string, boolean> = new Map();
@@ -30,8 +30,7 @@ export default class Binance extends Exchange {
 
       const exchangeInfoList = await this.getExchangeInformation();
       if (!exchangeInfoList) {
-        console.log("binance error..");
-        return process.exit(1);
+        return console.log("binance error..");
       }
 
       for (let i = 0; i < exchangeInfoList.length; i++) {
@@ -96,7 +95,6 @@ export default class Binance extends Exchange {
 
     this.wsConnector.on("error", async err => {
       console.log(`error binance : ${JSON.stringify(err)}`);
-      // this.emit("updateStatus", ExchangeStatuses.disconnected);
     });
 
     this.emit("updateStatus", ExchangeStatuses.initialized);

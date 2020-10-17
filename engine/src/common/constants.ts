@@ -6,5 +6,7 @@ export enum OrderType {
 }
 
 export enum ExchangeId {
-  binance = 1
+  binance = 1,
+  coinbase = 2,
+  bitfinex = 3
 }
