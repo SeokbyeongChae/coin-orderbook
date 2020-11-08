@@ -100,7 +100,7 @@ export class OrderBook {
 
   public removeOrderBookByExchangeId(exchangeId: ExchangeId, orderType: OrderType) {
     const orderBookMap = this.getOrderBookMap(orderType);
-    for (const [bgPrice, orderBookItem] of orderBookMap) {
+    for (const [bgPrice, orderBookItem] of orderBookMap.entries()) {
       const resultCnt = orderBookItem.removeExchange(exchangeId);
       if (resultCnt === 0) orderBookMap.delete(bgPrice);
     }
