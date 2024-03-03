@@ -1,10 +1,10 @@
-import StreamServer from "./streamServer";
+import Server from "./server";
 import msgpack from "msgpack-lite";
 import { MethodType, Method } from "./common/constants";
 
 export default class StreamClient {
   ws: any;
-  server: StreamServer;
+  server: Server;
 
   constructor(server: any, ws: any) {
     this.ws = ws;
@@ -27,7 +27,7 @@ export default class StreamClient {
     });
 
     this.ws.on("close", () => {
-      // this.server.privateDataUnsub('orderBook', this);
+      this.server.unsub(this)
       this.server.privateDataUnsub(Method.subscribeMarket, this);
       this.server.privateDataUnsub(Method.subscribeOrderBook, this);
       console.log("disconnected client..");
@@ -64,7 +64,7 @@ export default class StreamClient {
       case MethodType.subscribe: {
         switch (method) {
           case Method.subscribeMarket: {
-            this.sendMessage(type, method, this.server.getMarketList());
+            this.sendMessage(type, method, this.server.marketManager.getMarketList());
             this.server.privateDataSub(method, this, undefined);
             break;
           }
@@ -72,8 +72,9 @@ export default class StreamClient {
             const markets = params.market.split("/");
             const param = {
               market: params.market,
-              marketOrderBook: this.server.getOrderBook(markets[0], markets[1])
+              marketOrderBook: this.server.orderBookManager.getOrderBooK(markets[0], markets[1])
             };
+
             this.sendMessage(type, method, param);
             this.server.privateDataSub(method, this, (param: any) => {
               return param.market === params.market;

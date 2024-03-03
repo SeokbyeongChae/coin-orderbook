@@ -14,10 +14,10 @@ const enum engineMethod {
 
 // const enum methodType
 
-export default class StreamServer {
+export default class Server {
   // private engineSock = new zmq.Subscriber();
-  private orderBookManager: OrderBookManager = new OrderBookManager(config);
-  private marketManager: MarketManager = new MarketManager();
+  public orderBookManager: OrderBookManager = new OrderBookManager(config);
+  public marketManager: MarketManager = new MarketManager();
 
   private ipc = new IPC();
   private wss: WebSocket.Server | undefined;
@@ -25,7 +25,6 @@ export default class StreamServer {
   private clientListMap: Map<WebSocket, StreamClient> = new Map();
 
   // <socket, param>
-  private orderBookSubMap: Map<any, any> = new Map();
   private subscriberMap: Map<Method, Map<any, any>> = new Map();
 
   constructor() {
@@ -38,11 +37,8 @@ export default class StreamServer {
     this.initOrderBookManagerEventHandler();
   }
 
-  async startServer() {
-    this.wss = new WebSocket.Server({
-      port: 4000
-    });
-
+  async run(port: number) {
+    this.wss = new WebSocket.Server({ port });
     this.wss.on("connection", (ws: WebSocket, req: Request) => {
       console.log("connect client..");
       this.clientListMap.set(ws, new StreamClient(this, ws));
@@ -61,12 +57,13 @@ export default class StreamServer {
         this.engineMessageHandler(engineMethod.orderBook, msg);
       });
 
-      this.ipc.of.engine.on(engineMethod.updateOrderBook, (msg: any) => {
-        this.engineMessageHandler(engineMethod.updateOrderBook, msg);
-      });
-
+      
       this.ipc.of.engine.on(engineMethod.marketList, (msg: any) => {
         this.engineMessageHandler(engineMethod.marketList, msg);
+      });
+
+      this.ipc.of.engine.on(engineMethod.updateOrderBook, (msg: any) => {
+        this.engineMessageHandler(engineMethod.updateOrderBook, msg);
       });
     });
     return true;
@@ -74,7 +71,7 @@ export default class StreamServer {
 
   async requestEngineData(method: string, param?: any) {
     if (!this.ipc.of.engine) {
-      return console.log("fail to request engine data..");
+      return console.error("fail to request engine data..");
     }
 
     this.ipc.of.engine.emit(method, param);
@@ -109,6 +106,11 @@ export default class StreamServer {
     this.subscriberMap.set(Method.subscribeOrderBook, new Map());
   }
 
+  public unsub(client: StreamClient) {
+    // TODO: loop, privateDataSub 
+    // TODO: remove clientIp
+  }
+
   public privateDataSub(subscribeType: Method, client: StreamClient, compare: any) {
     const subscribeMap = this.subscriberMap.get(subscribeType);
     if (!subscribeMap) {
@@ -130,7 +132,7 @@ export default class StreamServer {
   private distributeSubscriptionData(subscribeType: Method, data: any) {
     const subscribeMap = this.subscriberMap.get(subscribeType);
     if (!subscribeMap) {
-      return console.log(`cannot define subscribe type: ${subscribeType}`);
+      return console.error(`cannot define subscribe type: ${subscribeType}`);
     }
 
     subscribeMap.forEach((compare, client) => {
@@ -142,14 +144,6 @@ export default class StreamServer {
         }
       }
     });
-  }
-
-  public getMarketList(): any[] {
-    return this.marketManager.getMarketList();
-  }
-
-  public getOrderBook(baseAsset: string, quoteAsset: string): any {
-    return this.orderBookManager.getOrderBooK(baseAsset, quoteAsset);
   }
 
   private initMarketManagerEventHandler() {

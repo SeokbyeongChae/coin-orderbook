@@ -5,7 +5,6 @@ import { TypedEmitter } from "tiny-typed-emitter";
 
 interface OrderBookManagerEvents {
   updateOrderBook: (orderBook: any) => void;
-  test: () => void;
 }
 
 /**
