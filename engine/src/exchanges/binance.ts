@@ -3,7 +3,7 @@ import Sleep from "sleep-promise";
 import Exchange, { ExchangeStatus } from "@src/lib/exchange";
 import WSConnector from "@src/lib/websocket_connector";
 import Api from "@src/lib/api";
-import Quant from "@src/quant";
+import Engine from "@src/lib/engine";
 import { OrderBookDatasetItem, OrderType } from "@src/lib/order_book";
 
 export default class Binance extends Exchange {
@@ -13,8 +13,8 @@ export default class Binance extends Exchange {
   tempOrderBookStreamBuffer: Map<string, Map<number, any>> = new Map();
   tempOrderBookInitialized: Map<string, boolean> = new Map();
 
-  constructor(quant: Quant, config: any, exchangeConfig: any) {
-    super(quant, config, exchangeConfig);
+  constructor(engine: Engine, config: any, exchangeConfig: any) {
+    super(engine, config, exchangeConfig);
 
     this.wsConnector = new BinanceWSConnector(this.exchangeConfig.webSocketUrl);
   }
@@ -130,7 +130,7 @@ export default class Binance extends Exchange {
         marketList.push(`${exchangeInfo.baseAsset}/${exchangeInfo.quoteAsset}`);
       }
 
-      this.quant.updateMarketList(this.id, marketList);
+      this.engine.updateMarketList(this.id, marketList);
     };
 
     await execution();
@@ -153,7 +153,7 @@ export default class Binance extends Exchange {
 
     const dataList: BinanceExchangeInformation[] = [];
     for (const symbol of result.data.symbols) {
-      if (!this.quant.isAvailableMarket(symbol.baseAsset, symbol.quoteAsset)) continue;
+      if (!this.engine.isAvailableMarket(symbol.baseAsset, symbol.quoteAsset)) continue;
       if (symbol.status !== "TRADING" || symbol.permissions.findIndex((x: string) => x === "SPOT") === -1) continue;
 
       dataList.push({

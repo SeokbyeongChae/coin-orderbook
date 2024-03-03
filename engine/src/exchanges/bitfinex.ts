@@ -5,7 +5,7 @@ import WSConnector from "@src/lib/websocket_connector";
 import { OrderBookDatasetItem, OrderType } from "@src/lib/order_book";
 import Api from "@src/lib/api";
 
-import Quant from "@src/quant";
+import Engine from "@src/lib/engine";
 
 export default class Bitfinex extends Exchange {
   wsConnector: BitfinexWSConnector;
@@ -13,8 +13,8 @@ export default class Bitfinex extends Exchange {
   orderBookIdMap: Map<number, string[]> = new Map();
   orderBookSnapshotMap: Map<number, boolean> = new Map();
 
-  constructor(quant: Quant, config: any, exchangeConfig: any) {
-    super(quant, config, exchangeConfig);
+  constructor(engine: Engine, config: any, exchangeConfig: any) {
+    super(engine, config, exchangeConfig);
 
     this.wsConnector = new BitfinexWSConnector(this.exchangeConfig.webSocketUrl);
   }
@@ -91,7 +91,7 @@ export default class Bitfinex extends Exchange {
         marketList.push(`${exchangeInfo.baseAsset}/${exchangeInfo.quoteAsset}`);
       }
 
-      this.quant.updateMarketList(this.id, marketList);
+      this.engine.updateMarketList(this.id, marketList);
     };
 
     await execution();
@@ -122,7 +122,7 @@ export default class Bitfinex extends Exchange {
         tempData = { baseAsset: market[0], quoteAsset: market[1] };
       }
 
-      if (this.quant.isAvailableMarket(tempData.baseAsset, tempData.quoteAsset)) {
+      if (this.engine.isAvailableMarket(tempData.baseAsset, tempData.quoteAsset)) {
         dataList.push(tempData);
       }
     }

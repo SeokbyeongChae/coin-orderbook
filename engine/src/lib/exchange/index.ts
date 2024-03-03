@@ -1,21 +1,21 @@
 import { TypedEmitter } from "tiny-typed-emitter";
-import Quant from "@src/quant";
+import Engine from "@src/lib/engine";
 import { OrderBookDatasetItem, OrderBookDataset, OrderType } from "@src/lib/order_book";
 
 import { ExchangeEvents } from "./type"
 export * from './type'
 
 export default abstract class Exchange extends TypedEmitter<ExchangeEvents> {
-  protected quant: Quant;
+  protected engine: Engine;
   protected config: any;
   protected id: number;
   protected endPoint: string;
-  public exchangeConfig: any;
+  protected exchangeConfig: any;
 
-  constructor(quant: Quant, config: any, exchangeConfig: any) {
+  constructor(engine: Engine, config: any, exchangeConfig: any) {
     super();
 
-    this.quant = quant;
+    this.engine = engine;
     this.config = config;
     this.exchangeConfig = exchangeConfig;
     this.id = this.exchangeConfig.id;
@@ -44,6 +44,6 @@ export default abstract class Exchange extends TypedEmitter<ExchangeEvents> {
       exchangeId: this.id
     };
 
-    this.quant.updateOrderBookByDataset(orderDataset);
+    this.engine.updateOrderBookByDataset(orderDataset);
   }
 }

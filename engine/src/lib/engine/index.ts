@@ -1,14 +1,10 @@
 import OrderBookManager, { OrderBookDataset } from "@src/lib/order_book";
-import Binance from "@src/exchanges/binance";
-import Coinbase from "@src/exchanges/coinbase";
-import Bitfinex from "@src/exchanges/bitfinex";
 import Exchange, { ExchangeStatus } from "@src/lib/exchange";
-import config from "../config/config.json";
 import { ExchangeId } from "@src/common/constants";
 import { IPC } from "node-ipc";
 import MarketManager from "@src/lib/market_manager";
 
-export default class Quant {
+export default class Engine {
   config: any;
 
   orderBookManager: OrderBookManager;
@@ -21,19 +17,7 @@ export default class Quant {
 
   constructor(config: any) {
     this.config = config;
-
     this.orderBookManager = new OrderBookManager(this.config);
-
-    // import("@src/exchanges/binance")
-
-    // const binanceExchange = new Binance(this, this.config, this.config.exchanges.binance);
-    // this.exchangeMap.set(ExchangeId.binance, binanceExchange);
-
-    // const bitfinexExchange = new Bitfinex(this, this.config, this.config.exchanges.bitfinex);
-    // this.exchangeMap.set(ExchangeId.bitfinex, bitfinexExchange);
-
-    // const coinbaseExchage = new Coinbase(this, this.config, this.config.exchanges.coinbase);
-    // this.exchangeMap.set(ExchangeId.coinbase, coinbaseExchage);
 
     this.ipc.config.id = "engine";
     this.ipc.config.retry = 1500;
@@ -44,7 +28,7 @@ export default class Quant {
     for (const exchangeKey in this.config.exchanges) {
       if (!this.config.exchanges[exchangeKey].enabled) continue;
       
-      const exchange = (await import(`./exchanges/${exchangeKey}`)).default;
+      const exchange = (await import(`../../exchanges/${exchangeKey}`)).default;
       const exchangeObject = new exchange(this, this.config, this.config.exchanges[exchangeKey]);
       this.exchangeMap.set(exchangeObject.id, exchangeObject);
     }
@@ -84,7 +68,7 @@ export default class Quant {
 
   public start() {
     for (const [exchangeId, exchange] of this.exchangeMap) {
-      if (!exchange.exchangeConfig.enabled) continue;
+      if (!exchange.isEnabled()) continue;
 
       exchange.on("updateStatus", status => {
         console.log('state: ', exchangeId, status);
@@ -159,13 +143,4 @@ export default class Quant {
     return this.isBaseAsset(baseAsset) && this.isQuoteAsset(quoteAsset);
   }
 }
-
-const main = async () => {
-  const quant = new Quant(config);
-  await quant.initExchanges();
-  quant.startPipeline();
-  quant.start();
-}
-
-main()
 
