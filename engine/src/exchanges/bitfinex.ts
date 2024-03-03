@@ -1,12 +1,11 @@
 // import { CoinbasePro } from "coinbase-pro-node";
 import { Big } from "big.js";
-import Exchange, { ExchangeStatuses } from "../lib/exchange";
-import WSConnector from "../lib/wsConnector";
-import { OrderBookDatasetItem } from "../lib/orderBook";
-import { OrderType } from "../common/constants";
-import Util from "../common/util";
+import Exchange, { ExchangeStatus } from "@src/lib/exchange";
+import WSConnector from "@src/lib/websocket_connector";
+import { OrderBookDatasetItem, OrderType } from "@src/lib/order_book";
+import Api from "@src/lib/api";
 
-import Quant from "../quant";
+import Quant from "@src/quant";
 
 export default class Bitfinex extends Exchange {
   wsConnector: BitfinexWSConnector;
@@ -24,12 +23,11 @@ export default class Bitfinex extends Exchange {
     this.updateMarketInfoTimer();
 
     this.wsConnector.on("open", async () => {
-      console.log("connect bitfinex..");
-      this.emit("updateStatus", ExchangeStatuses.running);
+      this.emit("updateStatus", ExchangeStatus.Running);
 
       const exchangeInfoList = await this.getExchangeInformation();
       if (!exchangeInfoList) {
-        return console.log("bitfinex error..");
+        return console.error("bitfinex error..");
       }
 
       for (const exchangeInfo of exchangeInfoList) {
@@ -57,15 +55,16 @@ export default class Bitfinex extends Exchange {
     });
 
     this.wsConnector.on("close", async () => {
-      console.log("close bitfinex..");
-      this.emit("updateStatus", ExchangeStatuses.disconnected);
+      console.error("close bitfinex..");
+      this.emit("updateStatus", ExchangeStatus.Disconnected);
     });
 
     this.wsConnector.on("error", async err => {
-      console.log(`error bitfinex : ${JSON.stringify(err)}`);
+      console.error(`error bitfinex : ${JSON.stringify(err)}`);
+      this.emit("updateStatus", ExchangeStatus.Disconnected);
     });
 
-    this.emit("updateStatus", ExchangeStatuses.initialized);
+    this.emit("updateStatus", ExchangeStatus.Initialized);
   }
 
   start(): void {
@@ -83,7 +82,7 @@ export default class Bitfinex extends Exchange {
     const execution = async () => {
       const exchangeInfoList = await this.getExchangeInformation();
       if (!exchangeInfoList) {
-        return console.log("bitfinex get product information error..");
+        return console.error("bitfinex get product information error..");
       }
 
       const marketList: string[] = [];
@@ -107,7 +106,7 @@ export default class Bitfinex extends Exchange {
       url: `${this.endPoint}/conf/pub:list:pair:exchange`
     };
 
-    const [err, result] = await Util.request(option);
+    const [err, result] = await Api.request(option);
     if (err) {
       console.dir(JSON.stringify(err));
       return undefined;
@@ -132,8 +131,6 @@ export default class Bitfinex extends Exchange {
   }
 
   private updateOrderBook(baseAsset: string, quoteAsset: string, data: any[]) {
-    // orderType: OrderType
-
     const orderbookBidData: OrderBookDatasetItem[] = [];
     const orderbookAskData: OrderBookDatasetItem[] = [];
     for (const item of data) {
@@ -164,16 +161,15 @@ export default class Bitfinex extends Exchange {
     }
 
     if (orderbookBidData.length !== 0) {
-      this.updateOrderBookByDataset(baseAsset, quoteAsset, this.id, OrderType.bid, orderbookBidData);
+      this.updateOrderBookByDataset(baseAsset, quoteAsset, OrderType.Bid, orderbookBidData);
     }
 
     if (orderbookAskData.length !== 0) {
-      this.updateOrderBookByDataset(baseAsset, quoteAsset, this.id, OrderType.ask, orderbookAskData);
+      this.updateOrderBookByDataset(baseAsset, quoteAsset, OrderType.Ask, orderbookAskData);
     }
   }
 
   messageHandler(message: any) {
-    // console.dir(message);
     switch (message.event) {
       case "info": {
         break;

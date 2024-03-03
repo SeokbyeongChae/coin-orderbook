@@ -1,18 +1,8 @@
 import WebSocket from "ws";
 import { TypedEmitter } from "tiny-typed-emitter";
 
-export enum WebSocketStatuses {
-  idle = 1,
-  running = 2
-}
-
-interface ExchangeEvents {
-  updateStatus: (status: WebSocketStatuses) => void;
-  open: () => void;
-  message: (data: any) => void;
-  close: () => void;
-  error: (err: any) => void;
-}
+import { ExchangeEvents } from "./type"
+export * from "./type"
 
 export default class WSConnector extends TypedEmitter<ExchangeEvents> {
   private url: string;
@@ -62,10 +52,6 @@ export default class WSConnector extends TypedEmitter<ExchangeEvents> {
   }
 }
 
-// const test = new WSConnector("wss://stream.binance.com:9443/ws");
+// class BinanceWSConnector extends WSConnector {}
+// const test = new BinanceWSConnector("wss://stream.binance.com:9443/ws");
 // test.start();
-
-class BinanceWSConnector extends WSConnector {}
-
-const test = new BinanceWSConnector("wss://stream.binance.com:9443/ws");
-test.start();

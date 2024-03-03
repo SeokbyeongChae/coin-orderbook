@@ -1,16 +1,14 @@
 import { Big } from "big.js";
-import Exchange, { ExchangeStatuses } from "../lib/exchange";
-import WSConnector from "../lib/wsConnector";
-import Util from "../common/util";
 import Sleep from "sleep-promise";
-import Quant from "../quant";
-import { OrderBookDatasetItem } from "../lib/orderBook";
-import { OrderType } from "../common/constants";
+import Exchange, { ExchangeStatus } from "@src/lib/exchange";
+import WSConnector from "@src/lib/websocket_connector";
+import Api from "@src/lib/api";
+import Quant from "@src/quant";
+import { OrderBookDatasetItem, OrderType } from "@src/lib/order_book";
 
 export default class Binance extends Exchange {
   wsConnector: BinanceWSConnector;
   exchangeInfoMap: Map<string, BinanceExchangeInformation> = new Map();
-  // exchangeInfoList: BinanceExchangeInformation[] | undefined;
 
   tempOrderBookStreamBuffer: Map<string, Map<number, any>> = new Map();
   tempOrderBookInitialized: Map<string, boolean> = new Map();
@@ -25,18 +23,17 @@ export default class Binance extends Exchange {
     this.updateMarketInfoTimer();
 
     this.wsConnector.on("open", async () => {
-      console.log("connect binance..");
-      this.emit("updateStatus", ExchangeStatuses.running);
+      this.emit("updateStatus", ExchangeStatus.Running);
 
       const exchangeInfoList = await this.getExchangeInformation();
       if (!exchangeInfoList) {
-        return console.log("binance error..");
+        console.error("binance error..");
+        return;
       }
 
       for (let i = 0; i < exchangeInfoList.length; i++) {
         const exchangeInfo = exchangeInfoList[i];
         this.exchangeInfoMap.set(exchangeInfo.symbol, exchangeInfo);
-        // this.quant.addMarketList(this.id, exchangeInfo.baseAsset, exchangeInfo.quoteAsset);
 
         this.tempOrderBookInitialized.set(exchangeInfo.symbol, false);
         this.tempOrderBookStreamBuffer.set(exchangeInfo.symbol, new Map());
@@ -54,17 +51,14 @@ export default class Binance extends Exchange {
           url: `${this.endPoint}/api/v3/depth?symbol=${exchangeInfo.symbol}&limit=50`
         };
 
-        const [err, result] = await Util.request(option);
+        const [err, result] = await Api.request(option);
         if (err) {
-          console.log(JSON.stringify(err));
+          console.error(JSON.stringify(err));
           continue;
         }
 
-        // updateOrderBook
-        this.updateOrderBook(exchangeInfo.baseAsset, exchangeInfo.quoteAsset, OrderType.ask, result.data.asks);
-        this.updateOrderBook(exchangeInfo.baseAsset, exchangeInfo.quoteAsset, OrderType.bid, result.data.bids);
-
-        //
+        this.updateOrderBook(exchangeInfo.baseAsset, exchangeInfo.quoteAsset, OrderType.Ask, result.data.asks);
+        this.updateOrderBook(exchangeInfo.baseAsset, exchangeInfo.quoteAsset, OrderType.Bid, result.data.bids);
 
         const tempOrderBookBuffer = this.tempOrderBookStreamBuffer.get(exchangeInfo.symbol);
         if (!tempOrderBookBuffer) {
@@ -75,7 +69,6 @@ export default class Binance extends Exchange {
 
         for (const [u, orderBookBuffer] of tempOrderBookBuffer) {
           if (orderBookBuffer.U <= result.data.lastUpdateId + 1 && u >= result.data.lastUpdateId) {
-            // this.emit('updateOrderBookByDataset', undefined);
           }
         }
 
@@ -89,15 +82,16 @@ export default class Binance extends Exchange {
     });
 
     this.wsConnector.on("close", async () => {
-      console.log("close binance..");
-      this.emit("updateStatus", ExchangeStatuses.disconnected);
+      console.error("close binance..");
+      this.emit("updateStatus", ExchangeStatus.Disconnected);
     });
 
     this.wsConnector.on("error", async err => {
-      console.log(`error binance : ${JSON.stringify(err)}`);
+      console.error(`error binance : ${JSON.stringify(err)}`);
+      this.emit("updateStatus", ExchangeStatus.Disconnected);
     });
 
-    this.emit("updateStatus", ExchangeStatuses.initialized);
+    this.emit("updateStatus", ExchangeStatus.Initialized);
   }
 
   start(): void {
@@ -119,20 +113,20 @@ export default class Binance extends Exchange {
       });
     }
 
-    this.updateOrderBookByDataset(baseAsset, quoteAsset, this.id, orderType, orderbookData);
+    this.updateOrderBookByDataset(baseAsset, quoteAsset, orderType, orderbookData);
   }
 
   private async updateMarketInfoTimer() {
     const execution = async () => {
       const exchangeInfoList = await this.getExchangeInformation();
       if (!exchangeInfoList) {
-        return console.log("binance get exchange information error..");
+        console.error("binance get exchange information error..");
+        return;
       }
 
       const marketList: string[] = [];
       for (let i = 0; i < exchangeInfoList.length; i++) {
         const exchangeInfo = exchangeInfoList[i];
-        // marketList.push([exchangeInfo.baseAsset, exchangeInfo.quoteAsset]);
         marketList.push(`${exchangeInfo.baseAsset}/${exchangeInfo.quoteAsset}`);
       }
 
@@ -151,9 +145,9 @@ export default class Binance extends Exchange {
       url: `${this.endPoint}/api/v3/exchangeInfo`
     };
 
-    const [err, result] = await Util.request(option);
+    const [err, result] = await Api.request(option);
     if (err) {
-      console.dir(JSON.stringify(err));
+      console.error(JSON.stringify(err));
       return undefined;
     }
 
@@ -176,7 +170,7 @@ export default class Binance extends Exchange {
     return dataList;
   }
 
-  messageHandler(message: any) {
+  private messageHandler(message: any) {
     switch (message.e) {
       case "depthUpdate": {
         if (!this.tempOrderBookInitialized.get(message.s)) {
@@ -186,10 +180,10 @@ export default class Binance extends Exchange {
         }
 
         const exchangeInfo = this.exchangeInfoMap.get(message.s);
-        if (!exchangeInfo) return console.log(`Cannot find binance market info..`);
+        if (!exchangeInfo) return console.error(`Cannot find binance market info..`);
 
-        this.updateOrderBook(exchangeInfo.baseAsset, exchangeInfo.quoteAsset, OrderType.bid, message.b);
-        this.updateOrderBook(exchangeInfo.baseAsset, exchangeInfo.quoteAsset, OrderType.ask, message.a);
+        this.updateOrderBook(exchangeInfo.baseAsset, exchangeInfo.quoteAsset, OrderType.Bid, message.b);
+        this.updateOrderBook(exchangeInfo.baseAsset, exchangeInfo.quoteAsset, OrderType.Ask, message.a);
         break;
       }
     }
@@ -199,11 +193,6 @@ export default class Binance extends Exchange {
 class BinanceWSConnector extends WSConnector {
   constructor(url: string) {
     super(url);
-
-    // this.on("message", (message: any) => {
-    //   console.dir(JSON.parse(message.data));
-    //   // this.emit("message", JSON.parse(message.data));
-    // });
   }
 }
 

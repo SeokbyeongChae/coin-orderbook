@@ -1,12 +1,11 @@
 // import { CoinbasePro } from "coinbase-pro-node";
 import { Big } from "big.js";
-import Exchange, { ExchangeStatuses } from "../lib/exchange";
-import WSConnector from "../lib/wsConnector";
-import { OrderBookDatasetItem } from "../lib/orderBook";
-import { OrderType } from "../common/constants";
-import Util from "../common/util";
+import Exchange, { ExchangeStatus } from "@src/lib/exchange";
+import WSConnector from "@src/lib/websocket_connector";
+import { OrderBookDatasetItem, OrderType } from "@src/lib/order_book";
+import Api from "@src/lib/api";
 
-import Quant from "../quant";
+import Quant from "@src/quant";
 
 export default class Coinbase extends Exchange {
   wsConnector: CoinbaseWSConnector;
@@ -21,12 +20,11 @@ export default class Coinbase extends Exchange {
     this.updateMarketInfoTimer();
 
     this.wsConnector.on("open", async () => {
-      console.log("connect coinbase..");
-      this.emit("updateStatus", ExchangeStatuses.running);
+      this.emit("updateStatus", ExchangeStatus.Running);
 
       const exchangeInfoList = await this.getExchangeInformation();
       if (!exchangeInfoList) {
-        return console.log("coinbase error..");
+        return console.error("coinbase error..");
       }
 
       const productIds = exchangeInfoList.map(exchangeInfo => {
@@ -47,15 +45,16 @@ export default class Coinbase extends Exchange {
     });
 
     this.wsConnector.on("close", async () => {
-      console.log("close coinbase..");
-      this.emit("updateStatus", ExchangeStatuses.disconnected);
+      console.error("close coinbase..");
+      this.emit("updateStatus", ExchangeStatus.Disconnected);
     });
 
     this.wsConnector.on("error", async err => {
-      console.log(`error coinbase : ${JSON.stringify(err)}`);
+      console.error(`error coinbase : ${JSON.stringify(err)}`);
+      this.emit("updateStatus", ExchangeStatus.Disconnected);
     });
 
-    this.emit("updateStatus", ExchangeStatuses.initialized);
+    this.emit("updateStatus", ExchangeStatus.Initialized);
   }
 
   start(): void {
@@ -72,7 +71,7 @@ export default class Coinbase extends Exchange {
     const execution = async () => {
       const exchangeInfoList = await this.getExchangeInformation();
       if (!exchangeInfoList) {
-        return console.log("coinbase get product information error..");
+        return console.error("coinbase get product information error..");
       }
 
       const marketList: string[] = [];
@@ -96,7 +95,7 @@ export default class Coinbase extends Exchange {
       url: `${this.endPoint}/products`
     };
 
-    const [err, result] = await Util.request(option);
+    const [err, result] = await Api.request(option);
     if (err) {
       console.dir(JSON.stringify(err));
       return undefined;
@@ -121,7 +120,7 @@ export default class Coinbase extends Exchange {
       });
     }
 
-    this.updateOrderBookByDataset(baseAsset, quoteAsset, this.id, orderType, orderbookData);
+    this.updateOrderBookByDataset(baseAsset, quoteAsset, orderType, orderbookData);
   }
 
   messageHandler(message: any) {
@@ -129,8 +128,8 @@ export default class Coinbase extends Exchange {
     switch (message.type) {
       case "snapshot": {
         const market = message.product_id.split("-");
-        this.updateOrderBook(market[0], market[1], OrderType.bid, message.bids);
-        this.updateOrderBook(market[0], market[1], OrderType.ask, message.asks);
+        this.updateOrderBook(market[0], market[1], OrderType.Bid, message.bids);
+        this.updateOrderBook(market[0], market[1], OrderType.Ask, message.asks);
         break;
       }
       case "l2update": {
@@ -146,8 +145,8 @@ export default class Coinbase extends Exchange {
           }
         }
 
-        if (bids.length !== 0) this.updateOrderBook(market[0], market[1], OrderType.bid, bids);
-        if (asks.length !== 0) this.updateOrderBook(market[0], market[1], OrderType.ask, asks);
+        if (bids.length !== 0) this.updateOrderBook(market[0], market[1], OrderType.Bid, bids);
+        if (asks.length !== 0) this.updateOrderBook(market[0], market[1], OrderType.Ask, asks);
         break;
       }
     }

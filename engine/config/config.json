@@ -3,7 +3,7 @@
     "binance": {
       "webSocketUrl": "wss://stream.binance.com:9443/ws",
       "endPoint": "https://api.binance.com",
-      "enabled": false,
+      "enabled": true,
       "id": 1
     },
     "coinbase": {

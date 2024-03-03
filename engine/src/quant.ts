@@ -1,17 +1,17 @@
-import OrderBookManafer, { OrderBookDataset } from "./lib/orderBook";
-import Binance from "./exchanges/binance";
-import Coinbase from "./exchanges/coinbase";
-import Bitfinex from "./exchanges/bitfinex";
-import Exchange, { ExchangeStatuses } from "./lib/exchange";
+import OrderBookManager, { OrderBookDataset } from "@src/lib/order_book";
+import Binance from "@src/exchanges/binance";
+import Coinbase from "@src/exchanges/coinbase";
+import Bitfinex from "@src/exchanges/bitfinex";
+import Exchange, { ExchangeStatus } from "@src/lib/exchange";
 import config from "../config/config.json";
-import { OrderType, ExchangeId } from "./common/constants";
+import { ExchangeId } from "@src/common/constants";
 import { IPC } from "node-ipc";
-import MarketManager from "./lib/marketManager";
+import MarketManager from "@src/lib/market_manager";
 
 export default class Quant {
   config: any;
 
-  orderBookManager: OrderBookManafer;
+  orderBookManager: OrderBookManager;
 
   exchangeMap: Map<ExchangeId, Exchange> = new Map();
 
@@ -22,20 +22,32 @@ export default class Quant {
   constructor(config: any) {
     this.config = config;
 
-    this.orderBookManager = new OrderBookManafer(this.config);
+    this.orderBookManager = new OrderBookManager(this.config);
 
-    const binanceExchange = new Binance(this, this.config, this.config.exchanges.binance);
-    this.exchangeMap.set(ExchangeId.binance, binanceExchange);
+    // import("@src/exchanges/binance")
 
-    const bitfinexExchange = new Bitfinex(this, this.config, this.config.exchanges.bitfinex);
-    this.exchangeMap.set(ExchangeId.bitfinex, bitfinexExchange);
+    // const binanceExchange = new Binance(this, this.config, this.config.exchanges.binance);
+    // this.exchangeMap.set(ExchangeId.binance, binanceExchange);
 
-    const coinbaseExchage = new Coinbase(this, this.config, this.config.exchanges.coinbase);
-    this.exchangeMap.set(ExchangeId.coinbase, coinbaseExchage);
+    // const bitfinexExchange = new Bitfinex(this, this.config, this.config.exchanges.bitfinex);
+    // this.exchangeMap.set(ExchangeId.bitfinex, bitfinexExchange);
+
+    // const coinbaseExchage = new Coinbase(this, this.config, this.config.exchanges.coinbase);
+    // this.exchangeMap.set(ExchangeId.coinbase, coinbaseExchage);
 
     this.ipc.config.id = "engine";
     this.ipc.config.retry = 1500;
     this.ipc.config.silent = true;
+  }
+
+  public async initExchanges() {
+    for (const exchangeKey in this.config.exchanges) {
+      if (!this.config.exchanges[exchangeKey].enabled) continue;
+      
+      const exchange = (await import(`./exchanges/${exchangeKey}`)).default;
+      const exchangeObject = new exchange(this, this.config, this.config.exchanges[exchangeKey]);
+      this.exchangeMap.set(exchangeObject.id, exchangeObject);
+    }
   }
 
   public startPipeline() {
@@ -56,7 +68,7 @@ export default class Quant {
       });
 
       this.ipc.server.on("orderBook", (data: any, socket: any) => {
-        const snapshot = this.orderBookManager.getDepthFitableOrderBookMap();
+        const snapshot = this.orderBookManager.getOrderBookList();
         this.ipc.server.emit(socket, "orderBook", snapshot);
       });
     });
@@ -75,18 +87,19 @@ export default class Quant {
       if (!exchange.exchangeConfig.enabled) continue;
 
       exchange.on("updateStatus", status => {
+        console.log('state: ', exchangeId, status);
         switch (status) {
-          case ExchangeStatuses.idle: {
+          case ExchangeStatus.Idle: {
             break;
           }
-          case ExchangeStatuses.initialized: {
+          case ExchangeStatus.Initialized: {
             exchange.start();
             break;
           }
-          case ExchangeStatuses.running: {
+          case ExchangeStatus.Running: {
             break;
           }
-          case ExchangeStatuses.disconnected: {
+          case ExchangeStatus.Disconnected: {
             exchange.stop();
             this.orderBookManager.removeOrderBookByExchangeId(exchangeId);
             exchange.start();
@@ -147,8 +160,12 @@ export default class Quant {
   }
 }
 
-const quant = new Quant(config);
-quant.startPipeline();
-quant.start();
+const main = async () => {
+  const quant = new Quant(config);
+  await quant.initExchanges();
+  quant.startPipeline();
+  quant.start();
+}
 
-// const streamServer = new StreamServer(quant);
+main()
+
