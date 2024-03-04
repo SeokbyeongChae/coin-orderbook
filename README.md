@@ -2,6 +2,8 @@
 
 ## Concept
 + It's possible to scale out with one core(engine) and multiple backends
+
+## Points for improvemen
 + IPC communication needs to be changed to message queue
 
 ## Description
