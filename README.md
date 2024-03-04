@@ -6,7 +6,7 @@
 ## Points for improvemen
 + IPC communication needs to be changed to message queue
 + Frontend refactoring is needed
-+ app is excluded from the refactoring scope
++ App refactoring is needed(I'm considering deleting it from the repository)
 
 ## Description
 + Provide cryptocurrency prices from multiple exchanges in a single page
