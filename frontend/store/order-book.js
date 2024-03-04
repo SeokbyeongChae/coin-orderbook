@@ -1,42 +1,41 @@
 import Vue from "vue";
 
-class MarketInfo {
+class OrderBook {
   market = undefined;
-  exchangeList = undefined;
+  asks = undefined;
+  bids = undefined;
 
   constructor(data) {
     this.update(data);
   }
 
   update(data) {
-    this.market = data[0];
-    this.exchangeList = data[1];
+    this.market = data.market;
+    this.asks = data.marketOrderBook.askMap;
+    this.bids = data.marketOrderBook.bidMap;
   }
 }
 
 export const state = () => ({
-  marketInfoMap: new Map()
+  orderBook: undefined,
 });
 
 export const mutations = {
-  updateMarketInfo(state, data) {
-    const market = data[0];
-    let marketInfo = state.marketInfoMap.get(market);
-    if (!marketInfo) {
-      marketInfo = new MarketInfo(data);
-      state.marketInfoMap.set(market, marketInfo);
+  updateOrderBook(state, data) {
+    if (!state.orderBook) {
+      state.orderBook = new OrderBook(data);
       return;
     }
 
-    marketInfo.update(data);
-  }
+    state.orderBook.update(data);
+  },
 };
 
 export const actions = {
-  subscribe({ rootGetters }) {
+  subscribe({ rootGetters }, { market }) {
     if (!rootGetters["context/isConnected"]) return;
 
-    Vue.prototype.$sendMessage(Vue.prototype.$requestTypes.SUBSCRIBE, "market", undefined);
+    Vue.prototype.$sendMessage(Vue.prototype.$requestTypes.SUBSCRIBE, "order-book", undefined, { market });
   },
 
   handleMessage({ state, rootState, commit, dispatch }, { requestInfo, message }) {
@@ -49,7 +48,7 @@ export const actions = {
           case Vue.prototype.$requestTypes.SUBSCRIBE: {
             switch (sentMessage.method) {
               case undefined: {
-                console.log('subscribe market...')
+                commit("updateOrderBook", message.data);
                 break;
               }
             }
@@ -81,7 +80,5 @@ export const actions = {
     }
   },
 };
-
-
 
 export const getters = {};

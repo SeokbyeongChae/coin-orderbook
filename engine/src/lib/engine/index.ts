@@ -1,27 +1,22 @@
 import OrderBookManager, { OrderBookDataset } from "@src/lib/order_book";
 import Exchange, { ExchangeStatus } from "@src/lib/exchange";
 import { ExchangeId } from "@src/common/constants";
-import { IPC } from "node-ipc";
 import MarketManager from "@src/lib/market_manager";
+import IPCServer, { EngineMethod } from "@src/lib/ipc_server";
 
 export default class Engine {
   config: any;
-
   orderBookManager: OrderBookManager;
-
   exchangeMap: Map<ExchangeId, Exchange> = new Map();
 
-  private ipc = new IPC();
-  private processSet: Set<any> = new Set();
-  private marketManager: MarketManager = new MarketManager();
+  private marketManager = new MarketManager();
+
+  // TODO: need to change ipc to queue
+  private ipcServer = new IPCServer()
 
   constructor(config: any) {
     this.config = config;
     this.orderBookManager = new OrderBookManager(this.config);
-
-    this.ipc.config.id = "engine";
-    this.ipc.config.retry = 1500;
-    this.ipc.config.silent = true;
   }
 
   public async initExchanges() {
@@ -34,39 +29,24 @@ export default class Engine {
     }
   }
 
-  public startPipeline() {
-    this.ipc.serve(() => {
-      this.ipc.server.on("connect", (socket: any) => {
-        this.processSet.add(socket);
-        console.log(this.processSet.size);
-      });
+  private startIPCServer() {
+    this.ipcServer.startPipeline();
 
-      this.ipc.server.on("socket.disconnected", (socket: any) => {
-        this.processSet.delete(socket);
-        console.log(this.processSet.size);
-      });
-
-      this.ipc.server.on("marketList", (data: any, socket: any) => {
-        const marketList = this.marketManager.getMarketList();
-        this.ipc.server.emit(socket, "marketList", marketList);
-      });
-
-      this.ipc.server.on("orderBook", (data: any, socket: any) => {
-        const snapshot = this.orderBookManager.getOrderBookList();
-        this.ipc.server.emit(socket, "orderBook", snapshot);
-      });
+    this.ipcServer.addEventListener(EngineMethod.MarketList, (msg: any, socket: any) => {
+      const marketList = this.marketManager.getMarketList();
+      this.ipcServer.sendMessage(socket, EngineMethod.MarketList, marketList);
     });
 
-    this.ipc.server.start();
+    this.ipcServer.addEventListener(EngineMethod.OrderBook, (msg: any, socket: any) => {
+      const snapshot = this.orderBookManager.getOrderBookList();
+      this.ipcServer.sendMessage(socket, EngineMethod.OrderBook, snapshot);
+    });
   }
 
-  private broadcastEngineMessage(method: string, data: any) {
-    for (const socket of this.processSet) {
-      this.ipc.server.emit(socket, method, data);
-    }
-  }
+  public async start() {
+    this.startIPCServer();
+    await this.initExchanges();
 
-  public start() {
     for (const [exchangeId, exchange] of this.exchangeMap) {
       if (!exchange.isEnabled()) continue;
 
@@ -107,26 +87,12 @@ export default class Engine {
       data: depthFairOrderBook
     };
 
-    this.broadcastEngineMessage("updateOrderBook", data);
-  }
-
-  public removeOrderBookByExchangeId(exchangeId: ExchangeId) {
-    this.orderBookManager.removeOrderBookByExchangeId(exchangeId);
+    this.ipcServer.broadcastEngineMessage("updateOrderBook", data);
   }
 
   public updateMarketList(exchangeId: ExchangeId, marketList: string[]) {
     this.marketManager.updateMarketList(exchangeId, marketList);
-    this.broadcastEngineMessage("marketList", this.marketManager.getMarketList());
-  }
-
-  public addMarketList(exchangeId: ExchangeId, baseAsset: string, quoteAsset: string) {
-    this.marketManager.addMarketList(exchangeId, baseAsset, quoteAsset);
-
-    this.broadcastEngineMessage("marketList", this.marketManager.getMarketList());
-  }
-
-  public removeAllMarketByExchangeId(exchangeId: ExchangeId) {
-    this.marketManager.removeAllMarketByExchangeId(exchangeId);
+    this.ipcServer.broadcastEngineMessage("marketList", this.marketManager.getMarketList());
   }
 
   public isQuoteAsset(asset: string): boolean {

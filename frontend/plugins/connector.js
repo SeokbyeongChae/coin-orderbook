@@ -1,76 +1,86 @@
 import Vue from "vue";
 import msgpack from "msgpack-lite";
 
-export default (context, inject) => {
-  let ws;
+export default ({ app }) => {
+  let client;
+  let requestId = 0;
+  const requestMap = new Map();
 
-  const sendMessage = (type, method, params) => {
-    if (!ws) return;
+  const connect = () => {
+    console.log("connecting..");
 
-    console.log(
-      `sendMessage: ${JSON.stringify({
-        type,
-        method,
-        params
-      })}`
-    );
+    // TODO: need to change to config file
+    client = new WebSocket("ws://127.0.0.1:4000/ws");
 
-    ws.send(
-      JSON.stringify({
-        type,
-        method,
-        params
-      })
-    );
+    client.onopen = connected;
+    client.onclose = retry;
+    client.onmessage = messageHandler;
+  };
+
+  const send = (type, component, method, params, tempData) => {
+    if (!app.store.getters["context/isConnected"]) return;
+
+    const payload = {
+      reqId: ++requestId,
+      type,
+      component,
+      method,
+      params
+    }
+
+    client.send(msgpack.encode(payload));
+    console.log("send", payload);
+
+    requestMap.set(requestId, {
+      payload,
+      tempData,
+    });
+
+    if (requestId >= Number.MAX_SAFE_INTEGER) requestId = 100000;
+  };
+
+  const retry = () => {
+    app.store.commit("context/setConnectionStatus", Vue.prototype.$connectionStatuses.connecting);
+    connect();
+  };
+
+  const connected = () => {
+    console.log("connected..");
+    client.binaryType = "arraybuffer";
+    app.store.commit("context/setConnectionStatus", Vue.prototype.$connectionStatuses.connected);
+  };
+
+  const messageHandler = (rawData) => {
+    let message;
+    try {
+      message = JSON.parse(msgpack.decode(new Uint8Array(rawData.data)));
+    } catch (err) {
+      console.error("corrupted receive message", rawData.data);
+      return;
+    }
+
+    // console.log(message.id, message.result, message.data);
+
     /*
-    ws.send(
-      msgpack.encode({
-        type,
-        method,
-        params
-      })
-    );
+      id: requestId,
+      result: resultType,
+      data: responseData
     */
+
+    const requestId = message.id;
+    const requestInfo = requestMap.get(requestId);
+    if (!requestInfo || !requestInfo.payload) {
+      console.log("cannot find origin message");
+      return;
+    }
+
+
+    app.store.dispatch(`${requestInfo.payload.component}/handleMessage`, {
+      requestInfo,
+      message,
+    });
   };
 
-  const connect = (url, vuex) => {
-    // ws = new WebSocket(
-    //   "ws://ec2-3-133-111-6.us-east-2.compute.amazonaws.com/ws"
-    // );
-
-    ws = new WebSocket("ws://127.0.0.1:4000/ws");
-
-    ws.onopen = () => {
-      console.log("connect to websock..");
-      context.$bus.$emit("connect");
-    };
-
-    ws.onmessage = rawMessage => {
-      // console.log(rawMessage.data);
-      try {
-        const message = JSON.parse(rawMessage.data);
-        // console.log(`receive message: ${JSON.stringify(message)}`);
-
-        const method = message.method;
-        if (
-          method > Vue.prototype.$method.market_start &&
-          method < Vue.prototype.$method.market_end
-        ) {
-          vuex.dispatch("market/messageHandler", message);
-        } else if (
-          method > Vue.prototype.$method.notification_start &&
-          method < Vue.prototype.$method.notification_end
-        ) {
-          vuex.dispatch("notification/messageHandler", message);
-        }
-      } catch (err) {
-        console.log(`message error: ${err}`);
-      }
-      // console.dir(msgpack.decode(message.data));
-      // console.dir(msgpack.decode(message.data));
-    };
-  };
-
-  inject("connectWS", connect);
-  inject("sendMessage", sendMessage);
+  Vue.prototype.$connect = connect;
+  Vue.prototype.$sendMessage = send;
 };

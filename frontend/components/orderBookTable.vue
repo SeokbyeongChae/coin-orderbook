@@ -1,11 +1,11 @@
 <template>
-  <v-simple-table dense>
+  <v-simple-table dense class="orderBookTable">
     <template v-if="items" v-slot:default>
       <thead>
         <tr>
-          <th class="text-left">Price</th>
-          <th class="text-left">Amount</th>
-          <th class="text-left">Exchage List</th>
+          <th class="text-left price">Price</th>
+          <th class="text-left amount">Amount</th>
+          <th class="text-left exchanges">Exchage List</th>
         </tr>
       </thead>
       <tbody>
@@ -21,6 +21,7 @@
 
 <script>
 export default {
+  name: 'OrderBookTable',
   props: {
     items: {
       type: Array
@@ -30,5 +31,18 @@ export default {
 };
 </script>
 
-<style>
+<style lang="scss" scoped>
+.orderBookTable{
+  .price {
+    width: 140px;
+  }
+
+  .amount {
+    width: 140px;
+  }
+
+  .exchanges {
+    //
+  }
+}
 </style>

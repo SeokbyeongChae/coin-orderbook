@@ -1,16 +1,9 @@
 import Big from "big.js";
-import Util from "../common/util";
-import { OrderType, ExchangeId } from "../common/constants";
+import ExchangeSortedMap, { SortedMapType } from "@src/lib/exchange_sorted_map";
 import { TypedEmitter } from "tiny-typed-emitter";
 
-interface OrderBookManagerEvents {
-  updateOrderBook: (orderBook: any) => void;
-}
-
-/**
- * dataset: [price: string, {totalAmount: string, exchangeList: array}]
- *
- */
+import { OrderType, OrderBookManagerEvents } from "./type";
+export * from "./type"
 
 export default class OrderBookManager extends TypedEmitter<OrderBookManagerEvents> {
   private orderBookMap: Map<string, OrderBook> = new Map();
@@ -46,17 +39,15 @@ export default class OrderBookManager extends TypedEmitter<OrderBookManagerEvent
 }
 
 class OrderBook {
-  // private askMap: any = Util.createAscSortedMap();
-  private askMap: any = Util.createDescSortedMap();
-  private bidMap: any = Util.createDescSortedMap();
-
+  private askMap = new ExchangeSortedMap(SortedMapType.Asc)
+  private bidMap = new ExchangeSortedMap(SortedMapType.Desc)
   private depth: number;
 
   constructor(depth: number) {
     this.depth = depth;
   }
 
-  updateOrderBookByDataset(orderType: OrderType, dataset: any) {
+  public updateOrderBookByDataset(orderType: OrderType, dataset: any) {
     const orderMap = this.getMap(orderType);
     for (const data of dataset) {
       const bgPrice = new Big(data.bgPrice);
@@ -79,7 +70,7 @@ class OrderBook {
     }
   }
 
-  getMap(orderType: OrderType) {
+  public getMap(orderType: OrderType) {
     return orderType === OrderType.ask ? this.askMap : this.bidMap;
   }
 }
@@ -97,9 +88,10 @@ class OrderBookItem {
     this.updated = true;
   }
 
-  update(bgTotalAmount: Big, exchangeList: []) {
+  public update(bgTotalAmount: Big, exchangeList: []) {
     this.bgTotalAmount = bgTotalAmount;
     this.exchangeList = exchangeList;
     this.updated = true;
   }
 }
+

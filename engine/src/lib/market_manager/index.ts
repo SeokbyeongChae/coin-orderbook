@@ -53,14 +53,6 @@ export default class MarketManager {
     }
   }
 
-  removeAllMarketByExchangeId(exchangeId: ExchangeId) {
-    for (const [market, exchangeIdSet] of this.exchangeListByMarket) {
-      exchangeIdSet.delete(exchangeId);
-    }
-
-    this.marketListByExchangeId.delete(exchangeId);
-  }
-
   getMarketList(): any[] {
     const result = [];
 

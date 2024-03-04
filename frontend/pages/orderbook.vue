@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="orderBook">
     <h2>Order Book</h2>
     <div v-if="orderBook">
       <h3>{{ orderBook.market }}</h3>
@@ -10,10 +10,10 @@
       </v-row>
       <v-row>
         <v-col>
-          <OrderBook :items="orderBook.asks" />
+          <orderBookTable :items="orderBook.asks" />
         </v-col>
         <v-col>
-          <OrderBook :items="orderBook.bids" />
+          <orderBookTable :items="orderBook.bids" />
         </v-col>
       </v-row>
     </div>
@@ -22,14 +22,14 @@
 
 <script>
 import { mapState } from "vuex";
-import { OrderBook } from "@/components/OrderBook";
+import orderBookTable from "@/components/orderBookTable.vue";
 
 export default {
   components: {
-    OrderBook
+    orderBookTable
   },
   computed: {
-    ...mapState("market", ["orderBook", "marketInfoMap"])
+    ...mapState("order-book", ["orderBook", "marketInfoMap"])
   },
   watch: {
     orderBook: {
@@ -53,5 +53,8 @@ export default {
 };
 </script>
 
-<style>
+<style lang="scss" scoped>
+.orderBook {
+  padding: 12px 32px; 
+}
 </style>

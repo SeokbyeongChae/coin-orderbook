@@ -1,5 +1,5 @@
 import { TypedEmitter } from "tiny-typed-emitter";
-import { ExchangeId } from "../common/constants";
+import { ExchangeId } from "./type";
 
 interface MarketManagerEvents {
   updateMarketList: (marketList: (string | ExchangeId[])[][]) => void;

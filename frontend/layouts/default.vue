@@ -5,14 +5,29 @@
 </template>
 
 <script>
+import { mapActions, mapGetters } from "vuex";
+
 export default {
+  computed: {
+    ...mapGetters("context", ["isConnected"]),
+  },
+  watch: {
+    isConnected() {
+      if (!this.isConnected) return;
+      
+      this.subscribeMarket();
+      this.subscribeOrderBook({ market: "ETH/BTC" });
+    },
+  },
+  created() {
+    this.$connect();
+  },
   mounted() {
-    this.$connectWS("tu", this.$store);
-    this.$bus.$on("connect", () => {
-      console.log("connect websocket..");
-      this.$store.dispatch("market/subscribeMarket");
-      this.$store.dispatch("market/subscribeOrderBook", { market: "ETH/BTC" });
-    });
+    //
+  },
+  methods: {
+    ...mapActions("market", { subscribeMarket: "subscribe"}),
+    ...mapActions("order-book", { subscribeOrderBook: "subscribe"}),
   }
 };
 </script>
