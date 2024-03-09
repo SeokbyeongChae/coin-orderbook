@@ -4,7 +4,7 @@ import config from "../../config/config.json";
 import Client, { ClientId } from "@src/client";
 import MarketManager from "@src/lib/market_manager";
 
-import EngineConnector, { EngineMethod } from "@src/server/engine_connector";
+import EventConnector, { EngineMethod } from "@src/server/event_connector"
 import EngineMessageHandler from "@src/server/engine_message_handler";
 
 import { ResultType, RouteComponent, SubscribeMethod, Subscriber } from "./type"
@@ -18,7 +18,8 @@ export default class Server {
 
   public orderBookManager = new OrderBookManager(config);
   public marketManager = new MarketManager();
-  public engineConnector = new EngineConnector()
+  public engineDomanin = "engine";
+  public engineConnector = new EventConnector("amqp://localhost", "orderbook", "server")
 
   private wss: WebSocket.Server | undefined;
 
@@ -52,12 +53,9 @@ export default class Server {
   }
 
   async connectEngine() {
-    this.engineConnector.connect(() => {
-      this.engineConnector.requestEngineData(EngineMethod.MarketList);
-      this.engineConnector.requestEngineData(EngineMethod.OrderBook);
-    })
-
-    this.engineConnector.registerEventListener(EngineMessageHandler.getInstance(this).process)
+    await this.engineConnector.run(EngineMessageHandler.getInstance(this).process);
+    this.engineConnector.broadcastMessage(this.engineDomanin, EngineMethod.MarketList);
+    this.engineConnector.broadcastMessage(this.engineDomanin, EngineMethod.OrderBook);
   }
 
   private initMarketManagerEventHandler() {

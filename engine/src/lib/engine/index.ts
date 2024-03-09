@@ -1,8 +1,7 @@
 import OrderBookManager, { OrderBookDataset } from "@src/lib/order_book";
-import Exchange, { ExchangeStatus } from "@src/lib/exchange";
-import { ExchangeId } from "@src/common/constants";
+import Exchange, { ExchangeStatus, ExchangeId } from "@src/lib/exchange";
 import MarketManager from "@src/lib/market_manager";
-import IPCServer, { EngineMethod } from "@src/lib/ipc_server";
+import EventConnector, { EngineMethod, EventMessage } from "@src/lib/event_connector";
 
 export default class Engine {
   config: any;
@@ -10,9 +9,8 @@ export default class Engine {
   exchangeMap: Map<ExchangeId, Exchange> = new Map();
 
   private marketManager = new MarketManager();
-
-  // TODO: need to change ipc to queue
-  private ipcServer = new IPCServer()
+  private serverDomain = "server";
+  private eventConnector = new EventConnector("amqp://localhost", "orderbook", "engine")
 
   constructor(config: any) {
     this.config = config;
@@ -29,22 +27,26 @@ export default class Engine {
     }
   }
 
-  private startIPCServer() {
-    this.ipcServer.startPipeline();
+  private async startEventConnector() {
+    await this.eventConnector.run((msg) => {
+      if (!msg || !msg.content) return;
 
-    this.ipcServer.addEventListener(EngineMethod.MarketList, (msg: any, socket: any) => {
-      const marketList = this.marketManager.getMarketList();
-      this.ipcServer.sendMessage(socket, EngineMethod.MarketList, marketList);
-    });
-
-    this.ipcServer.addEventListener(EngineMethod.OrderBook, (msg: any, socket: any) => {
-      const snapshot = this.orderBookManager.getOrderBookList();
-      this.ipcServer.sendMessage(socket, EngineMethod.OrderBook, snapshot);
-    });
+      const serverMessage: EventMessage = JSON.parse(msg.content.toString())
+      switch(serverMessage.method) {
+        case EngineMethod.MarketList: {
+          this.eventConnector.broadcastMessage(this.serverDomain, EngineMethod.MarketList, this.marketManager.getMarketList());
+          break;
+        }
+        case EngineMethod.OrderBook: {
+          this.eventConnector.broadcastMessage(this.serverDomain, EngineMethod.OrderBook, this.orderBookManager.getOrderBookList());
+          break;
+        }
+      }
+    })
   }
 
   public async start() {
-    this.startIPCServer();
+    await this.startEventConnector();
     await this.initExchanges();
 
     for (const [exchangeId, exchange] of this.exchangeMap) {
@@ -87,12 +89,12 @@ export default class Engine {
       data: depthFairOrderBook
     };
 
-    this.ipcServer.broadcastEngineMessage("updateOrderBook", data);
+    this.eventConnector.broadcastMessage(this.serverDomain, EngineMethod.UpdateOrderBook, data);
   }
 
   public updateMarketList(exchangeId: ExchangeId, marketList: string[]) {
     this.marketManager.updateMarketList(exchangeId, marketList);
-    this.ipcServer.broadcastEngineMessage("marketList", this.marketManager.getMarketList());
+    this.eventConnector.broadcastMessage(this.serverDomain, EngineMethod.MarketList, this.marketManager.getMarketList());
   }
 
   public isQuoteAsset(asset: string): boolean {

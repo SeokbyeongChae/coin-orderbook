@@ -1,4 +1,4 @@
-import { ExchangeId } from "../../common/constants";
+import { ExchangeId } from "@src/lib/exchange";
 
 export default class MarketManager {
   private exchangeListByMarket: Map<string, Set<ExchangeId>> = new Map();

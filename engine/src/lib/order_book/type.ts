@@ -1,4 +1,4 @@
-import { ExchangeId } from "@src/common/constants";
+import { ExchangeId } from "@src/lib/exchange";
 import Big from "big.js";
 
 export interface OrderBookDatasetItem {

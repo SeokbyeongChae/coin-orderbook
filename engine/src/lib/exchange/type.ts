@@ -1,3 +1,9 @@
+export enum ExchangeId {
+  binance = 1,
+  coinbase = 2,
+  bitfinex = 3
+}
+
 export enum ExchangeStatus {
   Idle = 1,
   Initialized = 2,

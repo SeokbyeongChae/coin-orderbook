@@ -1,6 +1,7 @@
 import Server from "@src/server";
-import { EngineMethod, EngineMessage } from "@src/server/engine_connector";
+import { EngineMethod, EventMessage } from "@src/server/event_connector";
 import { OrderType } from "@src/lib/order_book_manager";
+import Amqp from "amqplib/callback_api"
 
 export default class EngineMessageHandler {
   private static server: Server;
@@ -18,22 +19,25 @@ export default class EngineMessageHandler {
     return EngineMessageHandler.instance;
   }
 
-  public process(msg: EngineMessage) {
-    switch (msg.method) {
+  public process(msg: Amqp.Message) {
+    if (!msg || !msg.content) return;
+
+    const engineData: EventMessage = JSON.parse(msg.content.toString());
+    switch (engineData.method) {
       case EngineMethod.MarketList: {
-        EngineMessageHandler.updateMarketList(msg.data)
+        EngineMessageHandler.updateMarketList(engineData.data)
         break;
       }
       case EngineMethod.OrderBook: {
-        EngineMessageHandler.initOrderBook(msg.data)
+        EngineMessageHandler.initOrderBook(engineData.data)
         break;
       }
       case EngineMethod.UpdateOrderBook: {
-        EngineMessageHandler.updateOrderBook(msg.data)
+        EngineMessageHandler.updateOrderBook(engineData.data)
         break;
       }
       default: {
-        throw Error(`unknown engine methid: ${msg.method}`)
+        throw Error(`unknown engine methid: ${engineData.method}`)
       }
     }
   }

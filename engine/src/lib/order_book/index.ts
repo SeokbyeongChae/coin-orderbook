@@ -1,5 +1,5 @@
 import Big from "big.js";
-import { ExchangeId } from "@src/common/constants";
+import { ExchangeId } from "@src/lib/exchange";
 import ExchangeSortedMap, { SortedMapType } from "@src/lib/exchange_sorted_map";
 
 import { OrderType, OrderBookDataset } from "./type"

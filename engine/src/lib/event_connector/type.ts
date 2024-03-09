@@ -3,3 +3,8 @@ export const enum EngineMethod {
   UpdateOrderBook = "updateOrderBook",
   MarketList = "marketList"
 }
+
+export interface EventMessage {
+  method: EngineMethod,
+  data: any
+}

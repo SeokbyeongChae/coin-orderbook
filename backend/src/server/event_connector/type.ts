@@ -4,7 +4,7 @@ export const enum EngineMethod {
   MarketList = "marketList"
 }
 
-export interface EngineMessage {
+export interface EventMessage {
   method: EngineMethod,
   data: any
 }
