@@ -3,8 +3,9 @@
 ## Concept
 + It's possible to scale out with one core(engine) and multiple backends
 
-## Points for improvemen
-+ IPC communication needs to be changed to message queue
+## Points for improvement
++ Need to change the way we read the config
++ Refactor duplicated code into a node_modules package
 + Frontend refactoring is needed
 + App refactoring is needed(I'm considering deleting it from the repository)
 
