@@ -5,6 +5,7 @@
 
 ## Points for improvement
 + Need to change the way we read the config
++ Refactor duplicated code into a node_modules package
 + Frontend refactoring is needed
 + App refactoring is needed(I'm considering deleting it from the repository)
 
